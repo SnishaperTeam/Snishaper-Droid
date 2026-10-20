@@ -34,6 +34,7 @@ env:
   BUILD_TOOLS: "36.0.0"
   NDK_VERSION: "30.0.16248370"
   GOMOBILE_VERSION: "v0.0.0-20260803200217-62cee1672c8e"
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
 jobs:
   release:
@@ -64,6 +65,39 @@ jobs:
 
       - name: Use JDK 25 as JAVA_HOME
         run: echo "JAVA_HOME=${{ steps.jdk25.outputs.java-home }}" >> "$GITHUB_ENV"
+
+      # ----- Caches ----------------------------------------------------------
+      - name: Setup Gradle (dependency + build cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Android SDK components (NDK / platform / build-tools)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
+            ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.ANDROID_API }}
+            ${{ env.ANDROID_SDK_ROOT }}/build-tools/${{ env.BUILD_TOOLS }}
+          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
+          restore-keys: |
+            android-sdk-${{ runner.os }}-
+
+      - name: Cache gomobile toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/bin/gomobile
+            ~/go/bin/gobind
+          key: gomobile-${{ runner.os }}-${{ env.GOMOBILE_VERSION }}
+          restore-keys: |
+            gomobile-${{ runner.os }}-
+
+      - name: Cache Go build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ hashFiles('gomobile/go.sum') }}
+          restore-keys: |
+            go-build-${{ runner.os }}-
 
       # ----- Android SDK / NDK ----------------------------------------------
       - name: Install Android SDK components (preinstalled SDK on the runner)
