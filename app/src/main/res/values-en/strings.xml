@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SniShaper</string>
+
+    <!-- Shell / drawer -->
+    <string name="cd_open_drawer">Open navigation drawer</string>
+    <string name="cd_close_drawer">Close navigation drawer</string>
+    <string name="cd_logo">SniShaper logo</string>
+    <string name="drawer_theme_light">Light mode</string>
+    <string name="drawer_theme_dark">Dark mode</string>
+    <string name="drawer_theme_switch_light">Switch to light mode</string>
+    <string name="drawer_theme_switch_dark">Switch to dark mode</string>
+
+    <!-- Navigation: order mirrors desktop Sidebar.tsx (9 items, no CA entry). -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_proxies">Proxies</string>
+    <string name="nav_rules">Rules</string>
+    <string name="nav_routing">Auto Route</string>
+    <string name="nav_dns">DNS Settings</string>
+    <string name="nav_evolution">Evolution</string>
+    <string name="nav_logs">Real-time Logs</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_about">About</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">Welcome to SniShaper</string>
+    <string name="welcome_subtitle">Pick your interface language to get started</string>
+    <string name="welcome_pick_language">Select language</string>
+    <string name="welcome_start">Get Started</string>
+    <string name="language_zh">简体中文</string>
+    <string name="language_en">English</string>
+    <string name="language_ru">Русский</string>
+
+    <!-- Theme / appearance -->
+    <string name="theme_title">Color Scheme</string>
+    <string name="theme_default">Default MUI</string>
+    <string name="theme_snishaper">Classic SniShaper Blue</string>
+    <string name="theme_forest">Forest Green</string>
+    <string name="theme_sunset">Sunset Orange</string>
+    <string name="theme_ocean">Ocean Teal</string>
+    <string name="theme_graphite">Graphite</string>
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_system">System</string>
+
+    <!-- Common -->
+    <string name="common_apply">Apply</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_save">Save</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_add">Add</string>
+    <string name="common_search">Search</string>
+    <string name="common_test">Test</string>
+    <string name="common_refresh">Refresh</string>
+    <string name="common_clear">Clear</string>
+    <string name="common_enabled">Enabled</string>
+    <string name="common_disabled">Disabled</string>
+    <string name="common_coming_soon">Coming soon</string>
+    <string name="common_skeleton_note">Skeleton stage: data and interactions arrive in a later stage</string>
+    <string name="common_on">ON</string>
+    <string name="common_off">OFF</string>
+    <string name="common_empty">No data</string>
+    <string name="common_running">Running</string>
+    <string name="common_stopped">Stopped</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Dashboard</string>
+    <string name="dashboard_subtitle">Proxy, VPN and connection overview</string>
+    <string name="dashboard_start_proxy">Start Proxy</string>
+    <string name="dashboard_stop_proxy">Stop Proxy</string>
+    <string name="dashboard_vpn">VPN</string>
+    <string name="dashboard_core_status">Core Status</string>
+    <string name="dashboard_run_status">Run Status</string>
+    <string name="dashboard_work_mode">Mode</string>
+    <string name="dashboard_port">Port</string>
+    <string name="dashboard_vpn_status">VPN</string>
+    <string name="dashboard_conn_info">Connection Info</string>
+    <string name="dashboard_ready">Ready</string>
+
+    <!-- Proxies -->
+    <string name="proxies_title">Proxies</string>
+    <string name="proxies_subtitle">Manage ECH profiles and NAT64 mapping</string>
+    <string name="proxies_ech_section">ECH Config Management</string>
+    <string name="proxies_nat64_section">NAT64 Configuration Management</string>
+    <string name="proxies_add_ech">Add Config</string>
+    <string name="proxies_add_nat64">Add NAT64 Config</string>
+    <string name="proxies_empty_ech">No ECH Configs</string>
+    <string name="proxies_empty_nat64">No NAT64 configurations</string>
+
+    <!-- Rules -->
+    <string name="rules_title">Site Rules</string>
+    <string name="rules_subtitle">Manage routing modes grouped by site</string>
+    <string name="rules_filter_all">ALL</string>
+    <string name="rules_filter_tlsrf">TLS Fragment</string>
+    <string name="rules_filter_transparent">Pass-through</string>
+    <string name="rules_search_hint">Search rules, groups or domains</string>
+    <string name="rules_empty">No rules loaded</string>
+    <string name="rules_add">Add Rule</string>
+
+    <!-- Routing -->
+    <string name="routing_title">Auto Routing</string>
+    <string name="routing_subtitle">Traffic flow and rule source status</string>
+    <string name="routing_traffic_flow">Traffic Flow</string>
+    <string name="routing_waiting_traffic">Waiting for traffic…</string>
+    <string name="routing_gfwlist">GFWList Status</string>
+    <string name="routing_gfwlist_inactive">Rule source inactive</string>
+
+    <!-- DNS -->
+    <string name="dns_title">Secure DNS</string>
+    <string name="dns_subtitle">Manage DoH nodes and resolution tests</string>
+    <string name="dns_test_all">Test All</string>
+    <string name="dns_add">Add Node</string>
+    <string name="dns_empty">No DNS Nodes</string>
+
+    <!-- Evolution -->
+    <string name="evolution_title">Evolution Mode</string>
+    <string name="evolution_subtitle">Probe domain connectivity and generate rules</string>
+    <string name="evolution_tab_test">Test</string>
+    <string name="evolution_tab_rules">Rules</string>
+    <string name="evolution_tab_results">Results</string>
+    <string name="evolution_domains_hint">One domain per line</string>
+    <string name="evolution_enable_ipv6">Enable IPv6</string>
+    <string name="evolution_start">Start Test</string>
+    <string name="evolution_empty_results">No test results yet</string>
+    <string name="evolution_empty_rules">No rules generated yet</string>
+
+    <!-- Logs -->
+    <string name="logs_title">System Logs</string>
+    <string name="logs_subtitle">Proxy and core runtime logs</string>
+    <string name="logs_capture">Capture Logs</string>
+    <string name="logs_clear">Clear</string>
+    <string name="logs_search_hint">Search keywords, domains or error codes</string>
+    <string name="logs_empty">No logs collected</string>
+    <string name="logs_capture_off">CAPTURE OFF</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_subtitle">Port, appearance, language and startup behavior</string>
+    <string name="settings_general">General</string>
+    <string name="settings_startup">Startup</string>
+    <string name="settings_port">Proxy Port</string>
+    <string name="settings_port_desc">HTTP and SOCKS5 share this port</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_auto_start_proxy">Auto-enable proxy on startup</string>
+    <string name="settings_auto_start_proxy_desc">Start listening on the proxy port when the app launches</string>
+    <string name="settings_auto_update_rules">Auto-update rules</string>
+    <string name="settings_auto_update_rules_desc">Check and merge the latest rules on startup</string>
+    <string name="settings_about">About</string>
+
+    <!-- About -->
+    <string name="about_title">About SniShaper</string>
+    <string name="about_subtitle">A fast and secure networking tool</string>
+    <string name="about_version">Version</string>
+    <string name="about_channel_stable">Stable</string>
+    <string name="about_features">Core Features</string>
+    <string name="about_feature_ech">ECH Encryption</string>
+    <string name="about_feature_tlsfrag">TLS Fragmentation</string>
+    <string name="about_feature_dns">Secure DNS</string>
+    <string name="about_community">Community</string>
+    <string name="about_website">Official Website</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_copyright">Copyleft © 2025-2026 SniShaper Team</string>
+</resources>

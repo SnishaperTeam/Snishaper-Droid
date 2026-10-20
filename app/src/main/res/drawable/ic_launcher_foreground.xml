@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foreground: the logo scaled into the 66dp safe zone of a 108dp canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:scaleX="0.24"
+        android:scaleY="0.24"
+        android:translateX="23.3"
+        android:translateY="23.3">
+        <path android:pathData="M128,20 L40,20 L40,110 C40,170 75,215 128,240 C181,215 216,170 216,110 L216,20 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="128"
+                    android:startY="20"
+                    android:endX="128"
+                    android:endY="240">
+                    <item android:color="#FF2196F3" android:offset="0" />
+                    <item android:color="#FF0D47A1" android:offset="1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M165,90 C165,75 155,65 140,65 H116 C105,65 96,74 96,85 C96,96 105,105 116,105 H140 C151,105 160,114 160,125 C160,136 151,145 140,145 H116 H91"
+            android:strokeColor="#F2FFFFFF"
+            android:strokeWidth="20"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="@android:color/transparent" />
+        <path
+            android:pathData="M91,145 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0"
+            android:fillColor="#FFFFFFFF" />
+        <path
+            android:pathData="M165,90 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0"
+            android:fillColor="#FFFFFFFF" />
+    </group>
+</vector>

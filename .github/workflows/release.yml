@@ -1,0 +1,196 @@
+# =============================================================================
+# Snishaper-Droid · Release（草稿）
+#
+# ⚠ 状态：草稿（Draft）。与 .github/workflows/android.yml 同属 Stage 2 产出，
+#   本地无法运行 GitHub Actions，待 Stage 6 用真实 runner + 真实 tag 校验。
+#
+# 触发：push tag `v*`（与桌面 SniShaper 的版本节奏对齐，版本号形如 v1.29.0）。
+# 产物：release APK + AAB + 版本号 + changelog；release notes 明确标注
+#       “已移除 CA 功能”。
+#
+# 与 android.yml 的 build 步骤目前是复制关系（草稿阶段避免过度抽象）；
+# Stage 6 建议抽为 .github/workflows/_build.yml（workflow_call）或 composite
+# action，两处复用。
+# =============================================================================
+name: Release (draft)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "手动演练用 tag（如 v1.29.0）"
+        required: false
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  GOPROXY: https://goproxy.cn,direct
+  GOSUMDB: "off"
+  GOFLAGS: ""
+  ANDROID_API: "36"
+  BUILD_TOOLS: "36.0.0"
+  NDK_VERSION: "30.0.16248370"
+  GOMOBILE_VERSION: "v0.0.0-20260803200217-62cee1672c8e"
+
+jobs:
+  release:
+    name: Build & publish release (draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # changelog 需要完整 tag/提交历史
+
+      # ----- JDK（同 android.yml：17 对齐需求，25 实际构建） ----------------
+      - name: Setup JDK 17 (需求对齐；非实际构建 JDK)
+        id: jdk17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup JDK 25 (实际构建 JDK)
+        id: jdk25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Use JDK 25 as JAVA_HOME
+        run: echo "JAVA_HOME=${{ steps.jdk25.outputs.java-home }}" >> "$GITHUB_ENV"
+
+      # ----- Android SDK / NDK ----------------------------------------------
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK components
+        run: |
+          set -euo pipefail
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-${ANDROID_API}" \
+            "build-tools;${BUILD_TOOLS}" \
+            "ndk;${NDK_VERSION}"
+          yes | sdkmanager --licenses > /dev/null || true
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      # ----- Go / gomobile ---------------------------------------------------
+      - name: Setup Go 1.27
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.x"
+
+      - name: Check gcc
+        run: gcc --version
+
+      - name: Install gomobile
+        run: |
+          set -euo pipefail
+          go install "golang.org/x/mobile/cmd/gomobile@${GOMOBILE_VERSION}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      # ----- CA-free AAR -----------------------------------------------------
+      - name: Build CA-free AAR
+        run: |
+          set -euo pipefail
+          if [ -f scripts/build-aar.ps1 ]; then
+            pwsh -NoProfile -File scripts/build-aar.ps1
+          else
+            echo "::warning::scripts/build-aar.ps1 不存在，回退到内联 gomobile bind"
+            ( cd gomobile && gomobile bind \
+                -target=android/arm64,android/arm,android/amd64 \
+                -androidapi 24 -tags with_gvisor -javapkg com.snishaper.core \
+                -o ../app/libs/snishaper-core.aar ./mobile )
+          fi
+          pwsh -NoProfile -File scripts/verify-aar.ps1 -Quiet
+
+      # ----- Build release 产物 ----------------------------------------------
+      - name: Build release APK + AAB
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" --no-daemon --stacktrace \
+            lint test assembleRelease bundleRelease
+
+      # ----- 版本号与 changelog ----------------------------------------------
+      - name: Resolve version from tag
+        id: version
+        run: |
+          set -euo pipefail
+          RAW_TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${RAW_TAG#v}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${RAW_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          set -euo pipefail
+          PREV_TAG="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          {
+            echo "## 变更 / Changelog（${VERSION}）"
+            echo ""
+            if [ -n "${PREV_TAG}" ]; then
+              git log --pretty=format:"- %s (%h)" "${PREV_TAG}..HEAD" | head -200
+            else
+              git log --pretty=format:"- %s (%h)" -n 50
+            fi
+          } > CHANGELOG.RELEASE.md
+          cat CHANGELOG.RELEASE.md
+
+      - name: Compose release notes
+        run: |
+          set -euo pipefail
+          {
+            echo "# Snishaper-Droid ${VERSION}（Android）"
+            echo ""
+            echo "> ⚠ **已移除 CA 功能**：Android 版不包含证书生成、MITM 拦截、"
+            echo "> 系统证书安装/信任库写入等能力；配置导入时会自动清洗 mitm/quic"
+            echo "> 规则（详见 docs/android-bridge-api.md §7）。"
+            echo ""
+            echo "- 构建：Gradle 9.7.1 / AGP 9.4.1 / JDK 25 / compileSdk 36 / minSdk 24"
+            echo "- 内核：snishaper-core v0.4.0（gomobile AAR，arm64-v8a + armeabi-v7a + x86_64）"
+            echo "- 产物：release APK、AAB（见下方 Assets）"
+            echo ""
+            cat CHANGELOG.RELEASE.md
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      # ----- 发布 ------------------------------------------------------------
+      - name: Upload APK/AAB artifacts (run retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: snishaper-droid-release-${{ env.VERSION }}
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Snishaper-Droid ${{ env.VERSION }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

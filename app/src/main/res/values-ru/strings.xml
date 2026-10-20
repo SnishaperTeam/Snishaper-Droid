@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SniShaper</string>
+
+    <!-- Shell / drawer -->
+    <string name="cd_open_drawer">Открыть панель навигации</string>
+    <string name="cd_close_drawer">Закрыть панель навигации</string>
+    <string name="cd_logo">Логотип SniShaper</string>
+    <string name="drawer_theme_light">Светлая тема</string>
+    <string name="drawer_theme_dark">Тёмная тема</string>
+    <string name="drawer_theme_switch_light">Переключить на светлую тему</string>
+    <string name="drawer_theme_switch_dark">Переключить на тёмную тему</string>
+
+    <!-- Navigation: order mirrors desktop Sidebar.tsx (9 items, no CA entry). -->
+    <string name="nav_dashboard">Панель</string>
+    <string name="nav_proxies">Прокси</string>
+    <string name="nav_rules">Правила</string>
+    <string name="nav_routing">Маршрутизация</string>
+    <string name="nav_dns">Настройки DNS</string>
+    <string name="nav_evolution">Evolution</string>
+    <string name="nav_logs">Журналы</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="nav_about">О программе</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">Добро пожаловать в SniShaper</string>
+    <string name="welcome_subtitle">Выберите язык интерфейса</string>
+    <string name="welcome_pick_language">Выбор языка</string>
+    <string name="welcome_start">Начать</string>
+    <string name="language_zh">简体中文</string>
+    <string name="language_en">English</string>
+    <string name="language_ru">Русский</string>
+
+    <!-- Theme / appearance -->
+    <string name="theme_title">Цветовая схема</string>
+    <string name="theme_default">Стандартная MUI</string>
+    <string name="theme_snishaper">Классический синий SniShaper</string>
+    <string name="theme_forest">Лесная зелень</string>
+    <string name="theme_sunset">Закатный оранжевый</string>
+    <string name="theme_ocean">Морская бирюза</string>
+    <string name="theme_graphite">Графит</string>
+    <string name="appearance_title">Оформление</string>
+    <string name="appearance_light">Светлое</string>
+    <string name="appearance_dark">Тёмное</string>
+    <string name="appearance_system">Системное</string>
+
+    <!-- Common -->
+    <string name="common_apply">Применить</string>
+    <string name="common_cancel">Отмена</string>
+    <string name="common_save">Сохранить</string>
+    <string name="common_loading">Загрузка…</string>
+    <string name="common_add">Добавить</string>
+    <string name="common_search">Поиск</string>
+    <string name="common_test">Проверить</string>
+    <string name="common_refresh">Обновить</string>
+    <string name="common_clear">Очистить</string>
+    <string name="common_enabled">Включено</string>
+    <string name="common_disabled">Отключено</string>
+    <string name="common_coming_soon">Скоро</string>
+    <string name="common_skeleton_note">Каркас: данные и интерактивность появятся на следующем этапе</string>
+    <string name="common_on">ВКЛ</string>
+    <string name="common_off">ВЫКЛ</string>
+    <string name="common_empty">Нет данных</string>
+    <string name="common_running">Работает</string>
+    <string name="common_stopped">Остановлено</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Панель</string>
+    <string name="dashboard_subtitle">Прокси, VPN и состояние подключения</string>
+    <string name="dashboard_start_proxy">Запустить прокси</string>
+    <string name="dashboard_stop_proxy">Остановить прокси</string>
+    <string name="dashboard_vpn">VPN</string>
+    <string name="dashboard_core_status">Состояние ядра</string>
+    <string name="dashboard_run_status">Состояние</string>
+    <string name="dashboard_work_mode">Режим</string>
+    <string name="dashboard_port">Порт</string>
+    <string name="dashboard_vpn_status">VPN</string>
+    <string name="dashboard_conn_info">Подключение</string>
+    <string name="dashboard_ready">Готово</string>
+
+    <!-- Proxies -->
+    <string name="proxies_title">Прокси</string>
+    <string name="proxies_subtitle">Профили ECH и сопоставление NAT64</string>
+    <string name="proxies_ech_section">Профили ECH</string>
+    <string name="proxies_nat64_section">Профили NAT64</string>
+    <string name="proxies_add_ech">Добавить профиль</string>
+    <string name="proxies_add_nat64">Добавить NAT64</string>
+    <string name="proxies_empty_ech">Нет профилей ECH</string>
+    <string name="proxies_empty_nat64">Нет профилей NAT64</string>
+
+    <!-- Rules -->
+    <string name="rules_title">Правила сайтов</string>
+    <string name="rules_subtitle">Режимы маршрутизации по группам сайтов</string>
+    <string name="rules_filter_all">ВСЕ</string>
+    <string name="rules_filter_tlsrf">Фрагментация TLS</string>
+    <string name="rules_filter_transparent">Прозрачный режим</string>
+    <string name="rules_search_hint">Поиск правил, групп или доменов</string>
+    <string name="rules_empty">Правила не загружены</string>
+    <string name="rules_add">Добавить правило</string>
+
+    <!-- Routing -->
+    <string name="routing_title">Маршрутизация</string>
+    <string name="routing_subtitle">Поток трафика и состояние источника правил</string>
+    <string name="routing_traffic_flow">Поток трафика</string>
+    <string name="routing_waiting_traffic">Ожидание трафика…</string>
+    <string name="routing_gfwlist">Состояние GFWList</string>
+    <string name="routing_gfwlist_inactive">Источник неактивен</string>
+
+    <!-- DNS -->
+    <string name="dns_title">Безопасный DNS</string>
+    <string name="dns_subtitle">Узлы DoH и проверка разрешения имён</string>
+    <string name="dns_test_all">Проверить все</string>
+    <string name="dns_add">Добавить узел</string>
+    <string name="dns_empty">Нет узлов DNS</string>
+
+    <!-- Evolution -->
+    <string name="evolution_title">Режим Evolution</string>
+    <string name="evolution_subtitle">Автопроверка доменов и генерация правил</string>
+    <string name="evolution_tab_test">Тест</string>
+    <string name="evolution_tab_rules">Правила</string>
+    <string name="evolution_tab_results">Результаты</string>
+    <string name="evolution_domains_hint">По одному домену в строке</string>
+    <string name="evolution_enable_ipv6">Включить IPv6</string>
+    <string name="evolution_start">Начать тест</string>
+    <string name="evolution_empty_results">Результатов пока нет</string>
+    <string name="evolution_empty_rules">Правила ещё не созданы</string>
+
+    <!-- Logs -->
+    <string name="logs_title">Системные журналы</string>
+    <string name="logs_subtitle">Журналы прокси и ядра</string>
+    <string name="logs_capture">Захват журналов</string>
+    <string name="logs_clear">Очистить</string>
+    <string name="logs_search_hint">Поиск по ключевым словам, доменам, кодам</string>
+    <string name="logs_empty">Журналы не собраны</string>
+    <string name="logs_capture_off">ЗАХВАТ ВЫКЛ</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_subtitle">Порт, оформление, язык и запуск</string>
+    <string name="settings_general">Общие</string>
+    <string name="settings_startup">Запуск</string>
+    <string name="settings_port">Порт прокси</string>
+    <string name="settings_port_desc">HTTP и SOCKS5 используют один порт</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_auto_start_proxy">Включать прокси при запуске</string>
+    <string name="settings_auto_start_proxy_desc">Начинать прослушивание порта при запуске приложения</string>
+    <string name="settings_auto_update_rules">Автообновление правил</string>
+    <string name="settings_auto_update_rules_desc">Проверять и объединять правила при запуске</string>
+    <string name="settings_about">О программе</string>
+
+    <!-- About -->
+    <string name="about_title">О SniShaper</string>
+    <string name="about_subtitle">Быстрый и безопасный сетевой инструмент</string>
+    <string name="about_version">Версия</string>
+    <string name="about_channel_stable">Стабильная</string>
+    <string name="about_features">Основные возможности</string>
+    <string name="about_feature_ech">Шифрование ECH</string>
+    <string name="about_feature_tlsfrag">Фрагментация TLS</string>
+    <string name="about_feature_dns">Безопасный DNS</string>
+    <string name="about_community">Сообщество</string>
+    <string name="about_website">Официальный сайт</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_copyright">Copyleft © 2025-2026 SniShaper Team</string>
+</resources>

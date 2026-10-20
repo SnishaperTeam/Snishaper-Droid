@@ -1,0 +1,34 @@
+# Gradle / Android
+.gradle/
+**/build/
+local.properties
+*.hprof
+.cxx/
+captures/
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+!docs/**/*.log
+
+# Go local overrides
+gomobile/go.work
+gomobile/go.work.sum
+
+# gomobile AAR build output: produced by scripts/build-aar.ps1, NOT committed.
+# (74.7 MB stripped binary; CI rebuilds it and uploads it as an artifact.)
+app/libs/*.aar
+app/libs/*-sources.jar
+
+# Internal working documents (CA/UI analysis reports and the bridge contract)
+# are kept locally for development but are NOT published in this repository.
+/docs/analysis/
+/docs/android-bridge-api.md

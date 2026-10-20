@@ -1,0 +1,174 @@
+# =============================================================================
+# Snishaper-Droid · Android CI（草稿）
+#
+# ⚠ 状态：草稿（Draft）。本机没有 GitHub Actions runner，无法在本地执行/验证，
+#   待 Stage 6 推送后用真实 runner 校验。已知待确认项记录在
+#   docs/analysis/stage2-infra.md「CI 草稿遗留问题」。
+#
+# 流程：
+#   checkout → setup-java(17, 需求对齐) → setup-java(25, 实际构建) →
+#   setup-android + SDK/NDK → setup-go 1.27 → gcc 检查 → 安装 gomobile →
+#   gomobile bind 生成 CA-free AAR → verify-aar.ps1 契约校验 →
+#   gradlew lint test assembleRelease → 上传 APK/AAB artifacts
+#
+# 版本依据（本机实测，见 docs/analysis/env-report.md）：
+#   Gradle 9.7.1 / AGP 9.4.1 / JDK 25 (jbr) / compileSdk 36 / minSdk 24 /
+#   NDK 30.0.16248370 / Go 1.27 / gomobile x/mobile v0.0.0-20260803200217-62cee1672c8e
+# =============================================================================
+name: Android CI (draft)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Go 依赖：proxy.golang.org / sum.golang.org 在受限网络不可达（env-report §1.5）
+  GOPROXY: https://goproxy.cn,direct
+  GOSUMDB: "off"
+  GOFLAGS: ""
+  ANDROID_API: "36"
+  BUILD_TOOLS: "36.0.0"
+  NDK_VERSION: "30.0.16248370"
+  GOMOBILE_VERSION: "v0.0.0-20260803200217-62cee1672c8e"
+
+jobs:
+  build:
+    name: AAR + APK/AAB (draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ----- JDK -------------------------------------------------------------
+      # 需求要求 CI 保留 JDK 17 步骤（与桌面 SniShaper 的 JDK17 基线对齐，
+      # 也便于未来 AGP 降级时复用）。注意：AGP 9.4.1 的实际构建 JDK 用 25，
+      # 下一步 setup-java 25 才是构建实际使用的 JAVA_HOME。
+      - name: Setup JDK 17 (需求对齐；非实际构建 JDK)
+        id: jdk17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # 实际构建 JDK：本机用 Android Studio jbr 25.0.3 验证 AGP 9.4.1 成功；
+      # CI 无 jbr，用 Temurin 25（与 jbr 25 同为 JDK 25 语义）。
+      - name: Setup JDK 25 (实际构建 JDK)
+        id: jdk25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Use JDK 25 as JAVA_HOME
+        run: echo "JAVA_HOME=${{ steps.jdk25.outputs.java-home }}" >> "$GITHUB_ENV"
+
+      # ----- Android SDK / NDK ----------------------------------------------
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK components (platform 36 / build-tools / NDK r30)
+        run: |
+          set -euo pipefail
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-${ANDROID_API}" \
+            "build-tools;${BUILD_TOOLS}" \
+            "ndk;${NDK_VERSION}"
+          yes | sdkmanager --licenses > /dev/null || true
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      # ----- Go / gomobile / C 工具链 ----------------------------------------
+      - name: Setup Go 1.27
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.x"
+          # gomobile/go.sum 由 Stage 2a 提供后可开启依赖缓存：
+          # cache-dependency-path: gomobile/go.sum
+
+      - name: Check gcc (cgo toolchain)
+        run: gcc --version
+
+      - name: Install gomobile (pinned version)
+        run: |
+          set -euo pipefail
+          go install "golang.org/x/mobile/cmd/gomobile@${GOMOBILE_VERSION}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      # ----- Gradle wrapper --------------------------------------------------
+      # 仓库内 gradle-wrapper.properties 默认使用 huaweicloud 镜像
+      # （本机缓存可直接命中，见 env-report §1.1）。海外 runner 如镜像慢，
+      # 取消下面 sed 命令的注释，切回官方源（首次会下载 ~130 MB）。
+      - name: Show wrapper distribution
+        run: |
+          grep -E '^distributionUrl' gradle/wrapper/gradle-wrapper.properties
+          # sed -i 's#https\\://repo.huaweicloud.com/gradle/#https\\://services.gradle.org/distributions/#g' gradle/wrapper/gradle-wrapper.properties
+
+      # ----- CA-free AAR (gomobile bind) ------------------------------------
+      - name: Build CA-free AAR
+        run: |
+          set -euo pipefail
+          # scripts/build-aar.ps1 由 Stage 2a（task-4）提供，负责环境变量修正 +
+          # gomobile bind（arm64/arm/amd64、-androidapi 24、-tags with_gvisor、
+          # -javapkg com.snishaper.core）。ubuntu-latest 预装 pwsh。
+          if [ -f scripts/build-aar.ps1 ]; then
+            pwsh -NoProfile -File scripts/build-aar.ps1
+          else
+            echo "::warning::scripts/build-aar.ps1 不存在，回退到内联 gomobile bind"
+            ( cd gomobile && gomobile bind \
+                -target=android/arm64,android/arm,android/amd64 \
+                -androidapi 24 \
+                -tags with_gvisor \
+                -javapkg com.snishaper.core \
+                -o ../app/libs/snishaper-core.aar \
+                ./mobile )
+          fi
+
+      - name: Verify AAR contract (CA-free / ABI / minSdk / 16KB)
+        run: pwsh -NoProfile -File scripts/verify-aar.ps1 -Quiet
+
+      # ----- Build -----------------------------------------------------------
+      - name: Build (lint / test / assembleRelease)
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          # 覆盖 gradle.properties 中本机专用的 org.gradle.java.home（Linux 上不存在）
+          ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" --no-daemon --stacktrace \
+            lint test assembleRelease
+
+      # ----- Artifacts -------------------------------------------------------
+      - name: Upload APK/AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: snishaper-droid-${{ github.run_number }}
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload lint/test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-reports-${{ github.run_number }}
+          path: |
+            app/build/reports/lint-results*.html
+            app/build/test-results/**
+            app/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 7
