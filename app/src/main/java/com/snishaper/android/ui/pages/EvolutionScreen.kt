@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Activity
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -106,7 +105,7 @@ fun EvolutionScreen(contentPadding: PaddingValues) {
             )
 
             else -> EmptyState(
-                icon = Icons.Outlined.Activity,
+                icon = Icons.Outlined.Bolt,
                 titleRes = R.string.evolution_empty_results,
             )
         }

@@ -37,8 +37,10 @@ env:
   # CI runner 在海外：优先官方 Go proxy / checksum DB（本机开发环境用 goproxy.cn）。
   GOPROXY: https://proxy.golang.org,direct
   GOSUMDB: sum.golang.org
-  ANDROID_API: "36"
-  BUILD_TOOLS: "36.0.0"
+  # AndroidX dependencies require compileSdk >= 37; the released platform is android-37.2.
+  COMPILE_SDK: "37"
+  COMPILE_SDK_MINOR: "2"
+  BUILD_TOOLS: "37.0.0"
   NDK_VERSION: "30.0.16248370"
   GOMOBILE_VERSION: "v0.0.0-20260803200217-62cee1672c8e"
   # ubuntu-latest 预装 SDK 的固定位置（cache 路径与安装步骤共用）
@@ -86,9 +88,9 @@ jobs:
         with:
           path: |
             ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-            ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.ANDROID_API }}
+            ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}
             ${{ env.ANDROID_SDK_ROOT }}/build-tools/${{ env.BUILD_TOOLS }}
-          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
+          key: android-sdk-${{ runner.os }}-api${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
           restore-keys: |
             android-sdk-${{ runner.os }}-
 
@@ -130,7 +132,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" --install \
             "platform-tools" \
-            "platforms;android-${ANDROID_API}" \
+            "platforms;android-${COMPILE_SDK}.${COMPILE_SDK_MINOR}" \
             "build-tools;${BUILD_TOOLS}" \
             "ndk;${NDK_VERSION}"
 

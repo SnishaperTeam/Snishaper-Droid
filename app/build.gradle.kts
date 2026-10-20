@@ -18,7 +18,14 @@ val debugAbi: String = (findProperty("debugAbi") as String?)
 
 android {
     namespace = "com.snishaper.android"
-    compileSdk = 36
+    // AndroidX libraries used here require compileSdk >= 37; the installed platform
+    // on this machine (and in CI) is android-37.2. targetSdk stays 36 for runtime
+    // behaviour compatibility.
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "com.snishaper.android"

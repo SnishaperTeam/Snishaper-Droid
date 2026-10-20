@@ -116,7 +116,7 @@ object SnishaperEngine {
 
     private fun requireApp(): App = app ?: throw IllegalStateException("engine is not started yet")
 
-    private suspend fun <T> io(block: () -> T): T = withContext(Dispatchers.IO) { block() }
+    private suspend fun <T> io(block: suspend () -> T): T = withContext(Dispatchers.IO) { block() }
 
     // ------------------------------------------------------------------
     // Status / logs

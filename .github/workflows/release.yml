@@ -30,8 +30,9 @@ permissions:
 env:
   GOPROXY: https://proxy.golang.org,direct
   GOSUMDB: sum.golang.org
-  ANDROID_API: "36"
-  BUILD_TOOLS: "36.0.0"
+  COMPILE_SDK: "37"
+  COMPILE_SDK_MINOR: "2"
+  BUILD_TOOLS: "37.0.0"
   NDK_VERSION: "30.0.16248370"
   GOMOBILE_VERSION: "v0.0.0-20260803200217-62cee1672c8e"
   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -75,9 +76,9 @@ jobs:
         with:
           path: |
             ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-            ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.ANDROID_API }}
+            ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}
             ${{ env.ANDROID_SDK_ROOT }}/build-tools/${{ env.BUILD_TOOLS }}
-          key: android-sdk-${{ runner.os }}-api${{ env.ANDROID_API }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
+          key: android-sdk-${{ runner.os }}-api${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
           restore-keys: |
             android-sdk-${{ runner.os }}-
 
@@ -117,7 +118,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" --install \
             "platform-tools" \
-            "platforms;android-${ANDROID_API}" \
+            "platforms;android-${COMPILE_SDK}.${COMPILE_SDK_MINOR}" \
             "build-tools;${BUILD_TOOLS}" \
             "ndk;${NDK_VERSION}"
 
