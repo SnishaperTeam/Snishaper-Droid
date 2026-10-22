@@ -214,23 +214,24 @@ jobs:
           du -sh app/src/main/assets/frontend/assets
 
       # ----- Build -----------------------------------------------------------
-      - name: Build (lint / test / assembleRelease / bundleRelease)
+      # Regular CI builds a single-ABI debug APK (arm64) only; the full
+      # multi-ABI release build lives in release.yml (tag-triggered).
+      - name: Build (lint / test / assembleDebug arm64)
         run: |
           set -euo pipefail
           chmod +x gradlew
           # gradle.properties pins a Windows-only org.gradle.java.home; drop it in CI
           # so Gradle uses the JAVA_HOME set above.
           sed -i '/^org\.gradle\.java\.home=/d' gradle.properties
-          ./gradlew --no-daemon --stacktrace lint test assembleRelease bundleRelease
+          ./gradlew --no-daemon --stacktrace lint test assembleDebug -PdebugAbi=arm64-v8a
 
       # ----- Artifacts -------------------------------------------------------
-      - name: Upload APK/AAB/AAR
+      - name: Upload APK/AAR
         uses: actions/upload-artifact@v4
         with:
           name: snishaper-droid-${{ github.run_number }}
           path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/apk/debug/*.apk
             app/libs/snishaper-core.aar
           if-no-files-found: error
           retention-days: 14

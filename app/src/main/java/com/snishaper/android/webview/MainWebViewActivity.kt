@@ -19,6 +19,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.snishaper.android.BuildConfig
 import com.snishaper.android.core.SnishaperEngine
 import com.snishaper.android.vpn.TunVpnService
@@ -53,7 +54,8 @@ open class MainWebViewActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            runCatching { startForegroundService(Intent(this, TunVpnService::class.java)) }
+            // minSdk 24: ContextCompat falls back to startService below API 26
+            runCatching { ContextCompat.startForegroundService(this, Intent(this, TunVpnService::class.java)) }
                 .onFailure { Log.e(TAG, "vpn: start service failed: ${it.message}") }
         }
     }
@@ -124,7 +126,9 @@ open class MainWebViewActivity : ComponentActivity() {
                 view: WebView,
                 detail: RenderProcessGoneDetail,
             ): Boolean {
-                Log.e(TAG, "webview: render process gone (crashed=${detail.didCrash()})")
+                // didCrash() is API 26+; minSdk is 24
+                val crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail.didCrash()
+                Log.e(TAG, "webview: render process gone (crashed=$crashed)")
                 recreate()
                 return true
             }

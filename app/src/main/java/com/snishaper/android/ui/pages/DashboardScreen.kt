@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -85,7 +86,8 @@ fun DashboardScreen(contentPadding: PaddingValues) {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             runCatching {
-                context.startForegroundService(Intent(context, TunVpnService::class.java))
+                // minSdk 24: ContextCompat falls back to startService below API 26
+                ContextCompat.startForegroundService(context, Intent(context, TunVpnService::class.java))
             }.onFailure { toast("$vpnFailedText: ${it.message}") }
         } else {
             toast(consentNeededText)
@@ -122,7 +124,8 @@ fun DashboardScreen(contentPadding: PaddingValues) {
         val consent = VpnInstaller.prepare(context)
         if (consent == null) {
             runCatching {
-                context.startForegroundService(Intent(context, TunVpnService::class.java))
+                // minSdk 24: ContextCompat falls back to startService below API 26
+                ContextCompat.startForegroundService(context, Intent(context, TunVpnService::class.java))
             }.onFailure { toast("$vpnFailedText: ${it.message}") }
         } else {
             vpnConsentLauncher.launch(consent)
@@ -215,19 +218,20 @@ private fun CoreStatusCard(
     port: Int,
     vpnRunning: Boolean,
 ) {
+    val status by SnishaperEngine.status.collectAsStateWithLifecycle()
     StatusCard(modifier, R.string.dashboard_core_status, Icons.Outlined.Memory) {
         InfoRow(
             labelRes = R.string.dashboard_run_status,
             pillText = stringResource(
                 when {
                     !ready -> R.string.dashboard_engine_offline
-                    SnishaperEngine.status.value.proxyRunning -> R.string.common_running
+                    status.proxyRunning -> R.string.common_running
                     else -> R.string.common_stopped
                 },
             ),
             pillColor = when {
                 !ready -> MaterialTheme.colorScheme.error
-                SnishaperEngine.status.value.proxyRunning -> MaterialTheme.colorScheme.primary
+                status.proxyRunning -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.error
             },
         )

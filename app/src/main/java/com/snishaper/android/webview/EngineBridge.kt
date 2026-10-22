@@ -210,7 +210,9 @@ internal class EngineBridge(private val webView: WebView) {
                 val context = webView.context
                 val consent = com.snishaper.android.vpn.VpnInstaller.prepare(context)
                 if (consent == null) {
-                    context.startForegroundService(
+                    // minSdk 24: ContextCompat falls back to startService below API 26
+                    androidx.core.content.ContextCompat.startForegroundService(
+                        context,
                         android.content.Intent(context, com.snishaper.android.vpn.TunVpnService::class.java),
                     )
                     "started"
