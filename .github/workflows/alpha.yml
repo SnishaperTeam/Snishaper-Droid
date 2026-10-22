@@ -1,0 +1,23 @@
+name: Release (Alpha)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: "Prerelease suffix (defaults to alpha.1 if empty), e.g. alpha.2"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Alpha Prerelease
+    uses: ./.github/workflows/_release_pipeline.yml
+    with:
+      channel: alpha
+      prerelease: true
+      version_suffix: ${{ inputs.version_suffix || 'alpha.1' }}
+    secrets: inherit

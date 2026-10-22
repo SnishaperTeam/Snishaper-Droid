@@ -1,0 +1,371 @@
+# =============================================================================
+# Snishaper-Droid · Reusable Release Pipeline
+#
+# 被 alpha.yml / beta.yml / rc.yml / release.yml 以 workflow_call 调用。
+# 渠道：alpha / beta / rc / release。
+#
+# 版本策略（单一来源：app/build.gradle.kts 的 versionName）：
+#   * 正式渠道（release）：tag = v{versionName}（tag push 时用 tag 本身）
+#   * 预发布渠道：tag = v{versionName}-{suffix}（如 v1.29.0-alpha.1），
+#     构建时同步把 APK 的 versionName 改写为带后缀的完整版本，
+#     保证应用内"关于"页与 GitHub Release 版本一致。
+#
+# 更新日志：不做 AI 总结，直接列提交：
+#   - <提交标题> by @<作者> in `<完整 sha>`（反引号包裹，GitHub 自动链接）
+# =============================================================================
+name: Reusable Release Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "Release channel: alpha | beta | rc | release"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark the GitHub Release as a prerelease"
+        required: true
+        type: boolean
+      version_suffix:
+        description: "Prerelease suffix appended to the gradle versionName, e.g. alpha.1 (empty for release)"
+        required: false
+        type: string
+        default: ""
+      tag_override:
+        description: "Tag name when triggered by a tag push (e.g. v1.29.0); empty for manual dispatch"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  GOPROXY: https://proxy.golang.org,direct
+  GOSUMDB: sum.golang.org
+  COMPILE_SDK: "37"
+  COMPILE_SDK_MINOR: "2"
+  BUILD_TOOLS: "37.0.0"
+  NDK_VERSION: "30.0.16248370"
+  GOMOBILE_VERSION: "v0.0.0-20260803200217-62cee1672c8e"
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+jobs:
+  # ------------------------------------------------------------------
+  # Resolve the version/tag from gradle and skip if the release exists.
+  # ------------------------------------------------------------------
+  check:
+    name: Resolve version
+    runs-on: ubuntu-26.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      skip: ${{ steps.exists.outputs.skip }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from gradle config
+        id: version
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          SUFFIX: ${{ inputs.version_suffix }}
+          TAG_OVERRIDE: ${{ inputs.tag_override }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Single source of truth: app/build.gradle.kts versionName.
+          base="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -n1)"
+          if [ -z "$base" ]; then
+            echo "::error::versionName not found in app/build.gradle.kts"
+            exit 1
+          fi
+          echo "gradle versionName: ${base}"
+
+          if [ -n "$TAG_OVERRIDE" ]; then
+            tag="$TAG_OVERRIDE"
+            version="${TAG_OVERRIDE#v}"
+          else
+            version="$base"
+            if [ "$CHANNEL" != "release" ] && [ -n "$SUFFIX" ]; then
+              version="${base}-${SUFFIX}"
+            fi
+            tag="v${version}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "::notice::channel=${CHANNEL} version=${version} tag=${tag}"
+
+      - name: Check if release already exists
+        id: exists
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          skip=false
+          if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "::notice::release ${TAG} already exists - nothing to do"
+            skip=true
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------
+  # Full toolchain + multi-ABI release build (APK + AAB + AAR).
+  # ------------------------------------------------------------------
+  build:
+    name: Build release artifacts
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Apply prerelease version suffix (gradle versionName)
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          base="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -n1)"
+          if [ "$base" != "$VERSION" ]; then
+            sed -i "s/^[[:space:]]*versionName = \"${base}\"/versionName = \"${VERSION}\"/" app/build.gradle.kts
+            echo "::notice::versionName rewritten to ${VERSION} for this build"
+          fi
+          grep -n 'versionName' app/build.gradle.kts
+
+      - name: Setup JDK 17 (requirement alignment; not used for the build)
+        id: jdk17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup JDK 25 (actual build JDK)
+        id: jdk25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Use JDK 25 as JAVA_HOME
+        run: echo "JAVA_HOME=${{ steps.jdk25.outputs.java-home }}" >> "$GITHUB_ENV"
+
+      - name: Setup Gradle (dependency + build cache)
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Cache Android SDK components (NDK / platform / build-tools)
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
+            ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}
+            ${{ env.ANDROID_SDK_ROOT }}/build-tools/${{ env.BUILD_TOOLS }}
+          # v2 namespace: the old key's cache entry is corrupt (tar exit 2)
+          key: android-sdk-v2-${{ runner.os }}-api${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
+          restore-keys: |
+            android-sdk-v2-${{ runner.os }}-
+
+      - name: Cache gomobile toolchain
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/bin/gomobile
+            ~/go/bin/gobind
+          key: gomobile-${{ runner.os }}-${{ env.GOMOBILE_VERSION }}
+          restore-keys: |
+            gomobile-${{ runner.os }}-
+
+      - name: Cache Go build cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ hashFiles('gomobile/go.sum') }}
+          restore-keys: |
+            go-build-${{ runner.os }}-
+
+      - name: Install Android SDK components (preinstalled SDK on the runner)
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_SDK_ROOT=${SDK_ROOT}" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=${SDK_ROOT}" >> "$GITHUB_ENV"
+
+          SDKMANAGER="${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(command -v sdkmanager)" || {
+              echo "::error::sdkmanager not found on the runner"; exit 1;
+            }
+          fi
+
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install \
+            "platform-tools" \
+            "platforms;android-${COMPILE_SDK}.${COMPILE_SDK_MINOR}" \
+            "build-tools;${BUILD_TOOLS}" \
+            "ndk;${NDK_VERSION}"
+
+          echo "ANDROID_NDK_HOME=${SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Setup Go 1.27
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.x"
+          cache-dependency-path: gomobile/go.sum
+
+      - name: Check gcc (cgo toolchain)
+        run: gcc --version
+
+      - name: Install gomobile + gobind (pinned version)
+        run: |
+          set -euo pipefail
+          go install "golang.org/x/mobile/cmd/gomobile@${GOMOBILE_VERSION}"
+          go install "golang.org/x/mobile/cmd/gobind@${GOMOBILE_VERSION}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Use official Maven / Gradle repositories in CI
+        run: |
+          set -euo pipefail
+          sed -i '/repo\.huaweicloud\.com/d' settings.gradle.kts
+          sed -i 's#repo\.huaweicloud\.com/gradle#services.gradle.org/distributions#g' \
+            gradle/wrapper/gradle-wrapper.properties
+
+      - name: Build and verify CA-free AAR
+        run: |
+          set -euo pipefail
+          mkdir -p app/libs
+          cd gomobile
+          gomobile bind \
+            -target=android/arm64,android/arm,android/amd64 \
+            -androidapi 24 \
+            -tags with_gvisor \
+            -trimpath \
+            -ldflags="-s -w" \
+            -javapkg com.snishaper.core \
+            -o ../app/libs/snishaper-core.aar \
+            ./mobile
+          cd ..
+          python3 scripts/verify_aar.py
+
+      - name: Setup Node (frontend build)
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-android/package-lock.json
+
+      - name: Build frontend bundle (CA-free)
+        run: |
+          set -euo pipefail
+          cd frontend-android
+          npm install --no-audit --no-fund
+          npx vite build
+          cd ..
+          test -f app/src/main/assets/frontend/index.html
+          ! grep -rqE 'InstallCA|ExportCert|RegenerateCert|GetCACertPEM|GetCACertPath|GetCAInstallStatus|GetInstalledCerts|OpenCertDir|OpenCAFile|UninstallCert' app/src/main/assets/frontend/assets/
+
+      - name: Build release APK + AAB
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          sed -i '/^org\.gradle\.java\.home=/d' gradle.properties
+          ./gradlew --no-daemon --stacktrace lint test assembleRelease bundleRelease
+
+      - name: Stage release artifacts (flat layout for the publish job)
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk dist/
+          cp app/build/outputs/bundle/release/*.aab dist/
+          cp app/libs/snishaper-core.aar dist/
+          ls -lh dist/
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-artifacts-${{ needs.check.outputs.version }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  # ------------------------------------------------------------------
+  # Publish: commit-list changelog (no AI summary) + GitHub Release.
+  # ------------------------------------------------------------------
+  publish:
+    name: Publish release
+    needs: [check, build]
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-artifacts-${{ needs.check.outputs.version }}
+          path: release-assets
+
+      - name: Generate commit-list changelog
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+          TAG: ${{ needs.check.outputs.tag }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          PREV_TAG="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          {
+            echo "# Snishaper-Droid ${VERSION}（Android）"
+            echo
+            echo "> ⚠ **已移除 CA 功能**：Android 版不包含证书生成、MITM 拦截、"
+            echo "> 系统证书安装/信任库写入等能力；规则仅支持 TLS-RF / Transparent，"
+            echo "> 导入桌面配置时会自动清洗 mitm/quic 规则。"
+            echo
+            if [ "$CHANNEL" != "release" ]; then
+              echo "> 🚧 **预发布版本（${CHANNEL}）**：仅供测试，不建议日常使用。"
+              echo
+            fi
+            echo "## 变更 / Changelog"
+            echo
+            # Commit list, no AI summary:
+            #   - <subject> by @<author> in `<full sha>` (backticked -> GitHub autolink)
+            if [ -n "${PREV_TAG}" ]; then
+              git log -n 200 --pretty=format:"- %s by @%an in \`%H\`" "${PREV_TAG}..HEAD"
+            else
+              git log -n 200 --pretty=format:"- %s by @%an in \`%H\`"
+            fi
+            echo
+            echo
+            echo "## 产物 / Assets"
+            echo
+            echo "- 界面：直接复用桌面端 React 前端（React 19 + MUI 9），与桌面版 UI 一致"
+            echo "- 构建：Gradle 9.8.0 / AGP 9.4.1 / JDK 25 / compileSdk 36 / minSdk 24"
+            echo "- 内核：snishaper-core（gomobile AAR，arm64-v8a + armeabi-v7a + x86_64）"
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check.outputs.tag }}
+          name: Snishaper-Droid ${{ needs.check.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+          files: |
+            release-assets/*.apk
+            release-assets/*.aab
+            release-assets/snishaper-core.aar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

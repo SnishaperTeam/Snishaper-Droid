@@ -6,13 +6,17 @@
 #   Android SDK/NDK（使用 runner 预装 SDK + sdkmanager 直装）→ setup-go 1.27 →
 #   gcc → 安装 gomobile/gobind（固定版本）→ CI 切官方 Maven/Gradle 源 →
 #   gomobile bind 生成 CA-free AAR → verify-aar.ps1 契约校验 →
-#   gradlew lint test assembleRelease → 上传 APK/AAB/AAR artifacts
+#   gradlew lint test assembleDebug → 上传 APK/AAR artifacts
+#
+# PR 流程（与桌面版 build.yml 相同的 bot 状态机）：
+#   pull_request(opened/synchronize/reopened) → CLA gate → mark-running →
+#   build → ci 汇总 → bot-report（失败诊断评论 / 状态标签）
+#   签署协议后 cla.yml rerun 本 workflow 的 pull_request run。
 #
 # 说明：
-#   * 不再使用 android-actions/setup-android@v3：该 action 在当前 ubuntu-latest
-#     镜像上会执行 legacy `sdkmanager "tools"` 并失败（Failed to find package
-#     'tools'）。runner 镜像本身已预装 Android SDK + cmdline-tools，直接调用
-#     sdkmanager 安装 platform/build-tools/NDK 即可。
+#   * 不再使用 android-actions/setup-android@v3：该 action 在当前 ubuntu
+#     镜像上会执行 legacy `sdkmanager "tools"` 并失败。runner 镜像本身已预装
+#     Android SDK + cmdline-tools，直接调用 sdkmanager 安装组件即可。
 #   * 仓库默认使用华为云镜像（本机中国网络友好）；CI 在海外 runner 上切回
 #     官方 Maven / Gradle 源，避免镜像跨境慢或不可用。
 #   * 版本依据：Gradle 9.8.0 / AGP 9.4.1 / JDK 25 / compileSdk 36 / minSdk 24 /
@@ -24,14 +28,16 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 concurrency:
-  group: android-ci-${{ github.ref }}
+  group: android-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   # CI runner 在海外：优先官方 Go proxy / checksum DB（本机开发环境用 goproxy.cn）。
@@ -43,12 +49,86 @@ env:
   BUILD_TOOLS: "37.0.0"
   NDK_VERSION: "30.0.16248370"
   GOMOBILE_VERSION: "v0.0.0-20260803200217-62cee1672c8e"
-  # ubuntu-latest 预装 SDK 的固定位置（cache 路径与安装步骤共用）
+  # ubuntu 预装 SDK 的固定位置（cache 路径与安装步骤共用）
   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
 jobs:
+  # ------------------------------------------------------------------
+  # CLA gate — only for pull requests. Direct pushes to main and
+  # manual dispatches skip it entirely.
+  # ------------------------------------------------------------------
+  gate:
+    name: gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    outputs:
+      proceed: ${{ steps.decide.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Decide CLA gate
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/bots/common.sh
+          proceed=false
+          if [ -n "${AUTHOR:-}" ] && is_exempt "$AUTHOR"; then
+            proceed=true
+          fi
+          labels="$(gh_retry gh api "repos/${GH_REPO}/issues/${PR_NUMBER}/labels" --jq '.[].name')"
+          if grep -qx 'cla-signed' <<<"$labels"; then
+            proceed=true
+          fi
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------
+  # Mark the CI round as running as soon as the gate passes.
+  # ------------------------------------------------------------------
+  mark-running:
+    name: mark CI running
+    needs: gate
+    # Dependabot-triggered runs receive no repo secrets, so the syntax-bot
+    # identity is unavailable there; skip the label state machine for those
+    # PRs (gate still lets the build through).
+    if: >-
+      needs.gate.outputs.proceed == 'true' &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/create-github-app-token@v3
+        id: syntax_token
+        with:
+          app-id: ${{ secrets.SYNTAX_BOT_APP_ID }}
+          private-key: ${{ secrets.SYNTAX_BOT_PRIVATE_KEY }}
+
+      - name: Add ci-running label
+        env:
+          GH_TOKEN: ${{ steps.syntax_token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/bots/common.sh
+          # sync_labels clears ci-failed/ci-passed (mutual-exclusion group)
+          # plus syntax-review, changes-requested and approved (new round)
+          # automatically.
+          sync_labels "$PR_NUMBER" "ci-running" ""
+
+  # ------------------------------------------------------------------
+  # Full Android build. Runs unconditionally for direct pushes / manual
+  # dispatches; for pull requests only when the gate passed.
+  # ------------------------------------------------------------------
   build:
     name: AAR + APK/AAB
+    needs: gate
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.gate.outputs.proceed == 'true')
     runs-on: ubuntu-26.04
     timeout-minutes: 90
 
@@ -216,7 +296,7 @@ jobs:
 
       # ----- Build -----------------------------------------------------------
       # Regular CI builds a single-ABI debug APK (arm64) only; the full
-      # multi-ABI release build lives in release.yml (tag-triggered).
+      # multi-ABI release build lives in the release pipeline (tag-triggered).
       - name: Build (lint / test / assembleDebug arm64)
         run: |
           set -euo pipefail
@@ -249,3 +329,85 @@ jobs:
             app/build/reports/tests/**
           if-no-files-found: ignore
           retention-days: 7
+
+  # ------------------------------------------------------------------
+  # Stable single-point summary used as the required status check in
+  # branch protection ("ci"). Succeeds when every build job succeeded
+  # or was skipped; fails on any real failure so a red build blocks
+  # the merge.
+  # ------------------------------------------------------------------
+  ci:
+    name: ci
+    needs: [gate, build]
+    if: always() && !cancelled()
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Assert build outcome
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          failed="$(jq '[.[] | select(.result != "success" and .result != "skipped")] | length' <<<"$RESULTS")"
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::one or more required CI jobs did not succeed"
+            exit 1
+          fi
+          echo "all required CI jobs succeeded (or were skipped)"
+
+  # ------------------------------------------------------------------
+  # Bots — invoked directly from the build (no separate listener
+  # workflow). Only for pull-request rounds that passed the gate; label
+  # writes never re-trigger this workflow, so there is no feedback loop.
+  # ------------------------------------------------------------------
+  bot-report:
+    name: Report CI result (syntax-bot)
+    needs: [gate, ci]
+    if: >-
+      always() && !cancelled() &&
+      needs.gate.outputs.proceed == 'true' &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-26.04
+    permissions:
+      # GITHUB_TOKEN grants for the diagnostic log download; comment and
+      # label writes go through the syntax-bot App token instead.
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/create-github-app-token@v3
+        id: syntax_token
+        with:
+          app-id: ${{ secrets.SYNTAX_BOT_APP_ID }}
+          private-key: ${{ secrets.SYNTAX_BOT_PRIVATE_KEY }}
+
+      - name: Diagnose failure and mark changes requested
+        if: needs.ci.result == 'failure'
+        env:
+          GH_TOKEN: ${{ steps.syntax_token.outputs.token }}
+          LOG_GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/bots/common.sh
+          # Fresh comment per CI round (per-run anchor, no upsert): each
+          # round shows up in the PR timeline with a notification instead
+          # of silently editing an old comment.
+          body="<!-- snishaper-bot:ci-diagnostic:${RUN_ID} -->
+          $(.github/scripts/bots/ci-diagnose.sh "$PR_NUMBER" "$RUN_ID")"
+          gh_retry gh api -X POST "repos/${GH_REPO}/issues/${PR_NUMBER}/comments" \
+            -f body="$body" >/dev/null
+          # CI failure is itself a bot review verdict: mark the PR as
+          # changes-requested so the state machine reaches its terminal
+          # state without waiting for a human review.
+          sync_labels "$PR_NUMBER" "ci-failed,changes-requested" ""
+
+      - name: Mark CI passed and complete syntax review
+        if: needs.ci.result == 'success'
+        env:
+          GH_TOKEN: ${{ steps.syntax_token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/bots/common.sh
+          sync_labels "$PR_NUMBER" "ci-passed,syntax-review" ""

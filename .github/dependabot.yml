@@ -1,0 +1,54 @@
+version: 2
+
+updates:
+  # Go modules (gomobile AAR core): check once per day, grouped into one PR.
+  - package-ecosystem: gomod
+    directory: /gomobile
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 1
+    open-pull-requests-limit: 10
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+
+  # Frontend npm (reused desktop React bundle): check once per day, grouped.
+  - package-ecosystem: npm
+    directory: /frontend-android
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 1
+    open-pull-requests-limit: 10
+    groups:
+      frontend-deps:
+        patterns:
+          - "*"
+
+  # Gradle (Android app): check once per day, grouped.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 1
+    open-pull-requests-limit: 10
+    groups:
+      gradle-deps:
+        patterns:
+          - "*"
+
+  # GitHub Actions: check once per day, grouped into one PR.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 1
+    open-pull-requests-limit: 10
+    groups:
+      actions:
+        patterns:
+          - "*"
