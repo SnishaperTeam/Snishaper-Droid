@@ -162,4 +162,94 @@
     <string name="about_website">官方网站</string>
     <string name="about_github">GitHub</string>
     <string name="about_copyright">Copyleft © 2025-2026 SniShaper Team</string>
+
+    <!-- VPN (TUN mode) -->
+    <string name="vpn_notification_channel">TUN 模式通知</string>
+    <string name="vpn_notification_title">SniShaper TUN 模式</string>
+    <string name="vpn_notification_text">代理核心正在通过 TUN 接口转发流量</string>
+    <string name="dashboard_vpn_start">开启 VPN</string>
+    <string name="dashboard_vpn_stop">停止 VPN</string>
+    <string name="dashboard_vpn_consent_needed">需要授予 VPN 权限后重试</string>
+    <string name="dashboard_vpn_failed">VPN 启动失败</string>
+
+    <!-- Common (Stage 4 additions) -->
+    <string name="common_edit">编辑</string>
+    <string name="common_delete">删除</string>
+    <string name="common_fetch">获取</string>
+    <string name="common_reset">重置</string>
+    <string name="common_priority">优先级</string>
+    <string name="common_done">完成</string>
+    <string name="common_saving">保存中…</string>
+    <string name="common_confirm_stop">确认停止</string>
+    <string name="common_upstreams">上游</string>
+
+    <!-- Proxies page -->
+    <string name="proxies_field_name">名称</string>
+    <string name="proxies_field_discovery">探测域名</string>
+    <string name="proxies_field_doh">DoH 地址</string>
+    <string name="proxies_field_prefix">NAT64 前缀</string>
+    <string name="proxies_field_domain">域名</string>
+    <string name="proxies_fetch_ech">在线获取 ECH</string>
+    <string name="proxies_edit_ech">编辑 ECH 配置</string>
+    <string name="proxies_ech_config_size">配置大小：%1$d 字节</string>
+    <string name="proxies_delete_ech_confirm">确定删除 ECH 配置 “%1$s”？</string>
+    <string name="proxies_delete_nat64_confirm">确定删除 NAT64 配置 “%1$s”？</string>
+
+    <!-- Rules page -->
+    <string name="rules_field_name">分组名称</string>
+    <string name="rules_field_domains">域名（每行一个）</string>
+    <string name="rules_field_upstream">上游</string>
+    <string name="rules_mode_tlsrf">tls-rf</string>
+    <string name="rules_mode_transparent">transparent</string>
+    <string name="rules_mode_direct">direct（内置）</string>
+    <string name="rules_count">%1$d 条规则</string>
+    <string name="rules_showing">%1$d / %2$d</string>
+    <string name="rules_delete_confirm">确定删除规则 “%1$s”？</string>
+    <string name="rules_enabled">启用规则</string>
+    <string name="rules_domains_preview">%1$s 个域名</string>
+
+    <!-- Routing page -->
+    <string name="routing_domain">域名</string>
+    <string name="routing_mode">模式</string>
+    <string name="routing_time">时间</string>
+    <string name="routing_domain_count">规则域数量：%1$d</string>
+
+    <!-- DNS page -->
+    <string name="dns_field_name">名称</string>
+    <string name="dns_field_url">DoH URL</string>
+    <string name="dns_field_sni">SNI（可留空）</string>
+    <string name="dns_field_ips">IP 列表（逗号分隔，可留空）</string>
+    <string name="dns_ech_enable">启用 ECH</string>
+    <string name="dns_quic_enable">启用 QUIC</string>
+    <string name="dns_test_ok">成功</string>
+    <string name="dns_test_fail_prefix">失败：</string>
+    <string name="dns_test_latency_suffix"> ms</string>
+    <string name="dns_test_progress">测试中…</string>
+    <string name="dns_delete_confirm">确定删除节点 “%1$s”？</string>
+    <string name="dns_priority_up">上移</string>
+
+    <!-- Evolution page -->
+    <string name="evolution_stop">停止测试</string>
+    <string name="evolution_progress">进度：%1$d / %2$d</string>
+    <string name="evolution_status_running">测试进行中</string>
+    <string name="evolution_status_done">测试完成</string>
+    <string name="evolution_reachable">可达</string>
+    <string name="evolution_unreachable">不可达</string>
+    <string name="evolution_best_ip">最佳 IP：%1$s</string>
+    <string name="evolution_delay">延迟：%1$d ms</string>
+    <string name="evolution_apply">应用规则</string>
+    <string name="evolution_applied">已应用</string>
+    <string name="evolution_apply_unsupported">该结果的趋势不适用于安卓（仅 TLS 分片 / 直连可应用）</string>
+    <string name="evolution_rule_mode">模式：%1$s</string>
+
+    <!-- Logs page -->
+    <string name="logs_pause">暂停滚动</string>
+    <string name="logs_resume">继续滚动</string>
+
+    <!-- Settings page (engine-backed) -->
+    <string name="settings_port_applied">端口已应用</string>
+    <string name="settings_dynamic_color_title">动态取色</string>
+    <string name="settings_dynamic_color_desc">跟随系统壁纸生成配色（Android 12+）</string>
+    <string name="logs_waiting">等待引擎日志…</string>
+    <string name="about_core_version">内核版本</string>
 </resources>

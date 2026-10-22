@@ -27,7 +27,10 @@ import kotlinx.coroutines.launch
  * first-run Welcome language picker or the main drawer + NavHost shell.
  */
 @Composable
-fun SnishaperApp() {
+fun SnishaperApp(
+    language: String,
+    onLocaleChanged: () -> Unit,
+) {
     val context = LocalContext.current.applicationContext
     val repository = remember { PreferencesRepository(context) }
     val preferences by repository.preferences.collectAsState(initial = null)
@@ -63,7 +66,10 @@ fun SnishaperApp() {
         if (current.language.isEmpty()) {
             WelcomeScreen(
                 onStart = { language ->
-                    scope.launch { repository.setLanguage(language) }
+                    scope.launch {
+                        repository.setLanguage(language)
+                        onLocaleChanged()
+                    }
                 },
             )
         } else {
@@ -72,11 +78,19 @@ fun SnishaperApp() {
                 darkTheme = darkTheme,
                 onDrawerOpenChange = { open -> scope.launch { repository.setDrawerOpen(open) } },
                 onToggleTheme = { scope.launch { repository.setAppearance(toggledMode) } },
-                onLanguageChange = { language -> scope.launch { repository.setLanguage(language) } },
+                onLanguageChange = { code ->
+                    scope.launch {
+                        if (code != current.language) {
+                            repository.setLanguage(code)
+                            onLocaleChanged()
+                        }
+                    }
+                },
                 onThemeChange = { themeId -> scope.launch { repository.setThemeId(themeId) } },
                 onAppearanceChange = { mode -> scope.launch { repository.setAppearance(mode) } },
                 onAutoStartProxyChange = { enabled -> scope.launch { repository.setAutoStartProxy(enabled) } },
                 onAutoUpdateRulesChange = { enabled -> scope.launch { repository.setAutoUpdateRules(enabled) } },
+                onUseDynamicColorChange = { enabled -> scope.launch { repository.setUseDynamicColor(enabled) } },
             )
         }
     }

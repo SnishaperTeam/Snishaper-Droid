@@ -1,8 +1,6 @@
 package com.snishaper.android.ui.components
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,45 +16,48 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.snishaper.android.R
-import com.snishaper.android.ui.theme.LocalSnishaperExtraColors
 import kotlinx.coroutines.launch
 
 /** Global snackbar host, provided by the main scaffold. */
 val LocalSnackbarHostState = compositionLocalOf<SnackbarHostState?> { null }
 
-/** Convenience launcher for the global snackbar (stage-2 skeleton pages use it for "coming soon"). */
+/** Convenience launcher for the global snackbar. */
 @Composable
 fun rememberToast(): (String) -> Unit {
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     val hostState = LocalSnackbarHostState.current
     return { message ->
         scope.launch { hostState?.showSnackbar(message) }
     }
 }
 
-/** Scrollable page body that mirrors the desktop page padding (px:3 / pt:3). */
+/** Scrollable page body (standard padding). */
 @Composable
 fun PageColumn(
     contentPadding: PaddingValues,
@@ -74,8 +75,8 @@ fun PageColumn(
 }
 
 /**
- * Desktop page header: icon capsule + h5 title (+ optional subtitle), then optional actions.
- * Mirrors e.g. `Dashboard.tsx:346-458`.
+ * Page header: plain M3 icon + title (+ optional subtitle), then optional action row.
+ * (Pure Material 3: default tinting, no custom capsule.)
  */
 @Composable
 fun PageHeader(
@@ -89,33 +90,16 @@ fun PageHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(12.dp),
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                        shape = RoundedCornerShape(12.dp),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(titleRes),
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 if (subtitleRes != null) {
                     Text(
@@ -137,7 +121,7 @@ fun PageHeader(
     }
 }
 
-/** Desktop `SectionHeader` (`Settings.tsx:47-57`): icon + uppercase label + optional action. */
+/** Plain M3 section label with optional trailing action. */
 @Composable
 fun SectionHeader(
     @StringRes titleRes: Int,
@@ -145,9 +129,7 @@ fun SectionHeader(
     action: (@Composable () -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -155,21 +137,20 @@ fun SectionHeader(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
             )
         }
         Text(
-            text = stringResource(titleRes).uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = stringResource(titleRes),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f),
         )
         action?.invoke()
     }
 }
 
-/** Desktop `SettingRowInline` (`Settings.tsx:59-74`). */
+/** Plain M3 list row inside a Card (desktop SettingRow equivalent). */
 @Composable
 fun SettingRow(
     @StringRes titleRes: Int,
@@ -177,43 +158,23 @@ fun SettingRow(
     icon: ImageVector? = null,
     trailing: @Composable (() -> Unit)? = null,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant,
-        ),
-    ) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (icon != null) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(8.dp),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(titleRes),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge,
                 )
                 if (descRes != null) {
                     Text(
@@ -228,7 +189,47 @@ fun SettingRow(
     }
 }
 
-/** Desktop switch row (`FormControlLabel` + `Switch`). */
+/** Variant of [SettingRow] taking raw text (dynamic strings from engine data). */
+@Composable
+fun SettingTextRow(
+    title: String,
+    desc: String? = null,
+    icon: ImageVector? = null,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (!desc.isNullOrEmpty()) {
+                    Text(
+                        text = desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            trailing?.invoke()
+        }
+    }
+}
+
+/** Plain M3 switch row inside a Card. */
 @Composable
 fun SettingSwitchRow(
     @StringRes titleRes: Int,
@@ -247,7 +248,7 @@ fun SettingSwitchRow(
     )
 }
 
-/** Desktop empty state (dashed box + icon + label). */
+/** Plain M3 empty state: centered icon + texts, no custom dashed box. */
 @Composable
 fun EmptyState(
     icon: ImageVector,
@@ -257,17 +258,7 @@ fun EmptyState(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 180.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surface,
-                shape = MaterialTheme.shapes.large,
-            )
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = MaterialTheme.shapes.large,
-            )
-            .padding(24.dp),
+            .heightIn(min = 160.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -275,69 +266,109 @@ fun EmptyState(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(40.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.size(12.dp))
         Text(
             text = stringResource(titleRes),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
         if (messageRes != null) {
             Spacer(modifier = Modifier.size(4.dp))
             Text(
                 text = stringResource(messageRes),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
         }
     }
 }
 
-/** Small status pill, e.g. ON/OFF / RUNNING badges on the desktop dashboard. */
+/** Plain M3 badge (elevated Surface with the standard small shape). */
 @Composable
 fun StatusPill(
     text: String,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Surface(shape = CircleShape, color = containerColor) {
+    Surface(shape = MaterialTheme.shapes.small, color = containerColor) {
         Text(
-            text = text.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
             color = contentColor,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
         )
     }
 }
 
-/** Stage-2 marker: explains that the page is a skeleton and data arrives later. */
+/** One editable field inside [TextFieldDialog]. */
+data class DialogField(
+    val label: String,
+    val initial: String = "",
+    val singleLine: Boolean = true,
+    val minLines: Int = 1,
+    val keyboardType: KeyboardType = KeyboardType.Text,
+)
+
+/** Multi-field text dialog (standard M3 AlertDialog + OutlinedTextField). */
 @Composable
-fun SkeletonNote() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Info,
-            contentDescription = null,
-            modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-        )
-        Text(
-            text = stringResource(R.string.common_skeleton_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-        )
+fun TextFieldDialog(
+    title: String,
+    fields: List<DialogField>,
+    confirmText: String = stringResource(R.string.common_save),
+    dismissText: String = stringResource(R.string.common_cancel),
+    onConfirm: (List<String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val values = remember(fields) {
+        mutableStateListOf(*fields.map { it.initial }.toTypedArray())
     }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                fields.forEachIndexed { index, field ->
+                    OutlinedTextField(
+                        value = values[index],
+                        onValueChange = { value -> values[index] = value },
+                        label = { Text(field.label) },
+                        singleLine = field.singleLine,
+                        minLines = field.minLines,
+                        maxLines = if (field.singleLine) 1 else 10,
+                        keyboardOptions = KeyboardOptions(keyboardType = field.keyboardType),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(values.toList()) }) { Text(confirmText) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(dismissText) }
+        },
+    )
 }
 
-/** Desktop sidebar footer toggle label helper. */
+/** Confirmation dialog (standard M3 AlertDialog). */
 @Composable
-fun ThemeToggleLabel(darkTheme: Boolean): String =
-    stringResource(if (darkTheme) R.string.drawer_theme_light else R.string.drawer_theme_dark)
-
-/** Exposes the success color to keep skeleton pages consistent with the desktop palette. */
-@Composable
-fun successColor(): Color = LocalSnishaperExtraColors.current.success
+fun ConfirmDialog(
+    title: String,
+    message: String,
+    confirmText: String = stringResource(R.string.common_apply),
+    dismissText: String = stringResource(R.string.common_cancel),
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = { Text(text = message) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmText) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(dismissText) } },
+    )
+}

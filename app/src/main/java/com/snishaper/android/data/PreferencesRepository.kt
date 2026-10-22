@@ -90,4 +90,6 @@ class PreferencesRepository(context: Context) {
     suspend fun setAutoStartProxy(enabled: Boolean) = dataStore.edit { it[Keys.AUTO_START_PROXY] = enabled }
 
     suspend fun setAutoUpdateRules(enabled: Boolean) = dataStore.edit { it[Keys.AUTO_UPDATE_RULES] = enabled }
+
+    suspend fun setUseDynamicColor(enabled: Boolean) = dataStore.edit { it[Keys.USE_DYNAMIC_COLOR] = enabled }
 }

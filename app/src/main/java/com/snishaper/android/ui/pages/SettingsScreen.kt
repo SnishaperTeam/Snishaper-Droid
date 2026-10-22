@@ -23,29 +23,35 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snishaper.android.R
+import com.snishaper.android.core.SnishaperEngine
 import com.snishaper.android.data.AppPreferences
 import com.snishaper.android.data.AppearanceMode
 import com.snishaper.android.ui.components.PageColumn
 import com.snishaper.android.ui.components.PageHeader
 import com.snishaper.android.ui.components.SectionHeader
-import com.snishaper.android.ui.components.SettingRow
 import com.snishaper.android.ui.components.SettingSwitchRow
-import com.snishaper.android.ui.components.SkeletonNote
+import com.snishaper.android.ui.components.SettingTextRow
 import com.snishaper.android.ui.components.rememberToast
 import com.snishaper.android.ui.theme.SnishaperThemeCatalog
+import kotlinx.coroutines.launch
 
 /**
- * Settings skeleton: General + Appearance + Startup sections. The desktop "Security / CA"
- * section is intentionally absent (zero CA surface), as are tray/update/log-file rows.
+ * Settings page: General (port, language) + Appearance (mode, theme, dynamic color) +
+ * Startup sections. The port is read/written directly against the engine settings JSON
+ * (persisted by the Go core's settings.json). The desktop "Security / CA" section is
+ * intentionally absent (zero CA surface), as are tray/update/log-file rows.
  */
 @Composable
 fun SettingsScreen(
@@ -56,16 +62,29 @@ fun SettingsScreen(
     onAppearanceChange: (AppearanceMode) -> Unit,
     onAutoStartProxyChange: (Boolean) -> Unit,
     onAutoUpdateRulesChange: (Boolean) -> Unit,
+    onUseDynamicColorChange: (Boolean) -> Unit,
 ) {
-    val comingSoon = stringResource(id = R.string.common_coming_soon)
     val toast = rememberToast()
-    var port by rememberSaveable { mutableStateOf("8080") }
+    val scope = rememberCoroutineScope()
+    val settings by com.snishaper.android.core.SnishaperEngine.settings.collectAsStateWithLifecycle()
+    var port by rememberSaveable { mutableStateOf("") }
+    var portSynced by rememberSaveable { mutableStateOf(false) }
+
+    // Sync the engine's current listen port into the text field exactly once per load.
+    LaunchedEffect(settings.listenPort) {
+        if (!portSynced && settings.listenPort.isNotBlank()) {
+            port = settings.listenPort
+            portSynced = true
+        }
+    }
+
     val languages = listOf("zh" to R.string.language_zh, "en" to R.string.language_en, "ru" to R.string.language_ru)
     val appearanceOptions = listOf(
         AppearanceMode.LIGHT to R.string.appearance_light,
         AppearanceMode.DARK to R.string.appearance_dark,
         AppearanceMode.SYSTEM to R.string.appearance_system,
     )
+    val appliedText = stringResource(R.string.settings_port_applied)
 
     PageColumn(contentPadding = contentPadding) {
         PageHeader(
@@ -76,10 +95,10 @@ fun SettingsScreen(
 
         SectionHeader(titleRes = R.string.settings_general, icon = Icons.Outlined.Memory)
 
-        SettingRow(
-            titleRes = R.string.settings_port,
-            descRes = R.string.settings_port_desc,
-            icon = Icons.Outlined.Language,
+        SettingTextRow(
+            title = stringResource(R.string.settings_port),
+            desc = stringResource(R.string.settings_port_desc),
+            icon = Icons.Outlined.Memory,
             trailing = {
                 Row(
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -93,15 +112,25 @@ fun SettingsScreen(
                         textStyle = MaterialTheme.typography.bodyMedium,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
-                    Button(onClick = { toast(comingSoon) }) {
-                        Text(stringResource(id = R.string.common_apply))
+                    Button(
+                        enabled = port.isNotBlank() && (port.toIntOrNull() ?: 0) in 1024..65535,
+                        onClick = {
+                            val newPort = port.toIntOrNull() ?: return@Button
+                            scope.launch {
+                                runCatching { SnishaperEngine.setListenPort(newPort) }
+                                    .onSuccess { toast(appliedText) }
+                                    .onFailure { toast(it.message ?: "操作失败") }
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.common_apply))
                     }
                 }
             },
         )
 
-        SettingRow(
-            titleRes = R.string.settings_language,
+        SettingTextRow(
+            title = stringResource(R.string.settings_language),
             icon = Icons.Outlined.Language,
         )
         Row(
@@ -135,8 +164,8 @@ fun SettingsScreen(
             }
         }
 
-        SettingRow(
-            titleRes = R.string.theme_title,
+        SettingTextRow(
+            title = stringResource(R.string.theme_title),
             icon = Icons.Outlined.Palette,
         )
         Row(
@@ -153,6 +182,13 @@ fun SettingsScreen(
                 )
             }
         }
+        SettingSwitchRow(
+            titleRes = R.string.settings_dynamic_color_title,
+            descRes = R.string.settings_dynamic_color_desc,
+            icon = Icons.Outlined.Palette,
+            checked = preferences.useDynamicColor,
+            onCheckedChange = onUseDynamicColorChange,
+        )
 
         SectionHeader(titleRes = R.string.settings_startup, icon = Icons.Outlined.PlayArrow)
         SettingSwitchRow(
@@ -168,14 +204,6 @@ fun SettingsScreen(
             icon = Icons.Outlined.Refresh,
             checked = preferences.autoUpdateRules,
             onCheckedChange = onAutoUpdateRulesChange,
-        )
-
-        Spacer(modifier = Modifier.width(1.dp))
-        SkeletonNote()
-        Text(
-            text = "端口/规则等引擎设置将由 Go core 持久化，当前仅保留 UI 骨架。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
         )
     }
 }

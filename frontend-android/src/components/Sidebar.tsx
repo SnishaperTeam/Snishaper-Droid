@@ -1,0 +1,202 @@
+import React, { useMemo } from 'react';
+import { NavLink } from 'react-router-dom';
+import { Box, Drawer, IconButton, Tooltip, Typography, useColorScheme, useMediaQuery, useTheme } from '@mui/material';
+import { Sun, Moon } from '../lib/icons';
+import logoUrl from '../assets/logo.svg';
+import {
+  Activity,
+  FileText,
+  Settings,
+  Shield,
+  RefreshCcw,
+  Globe,
+  Antenna,
+  Info,
+  Bolt,
+} from '../lib/icons';
+import { useTranslation } from '../i18n/I18nContext';
+import { SetAppearanceMode } from '../api/bindings';
+
+const DRAWER_WIDTH = 240;
+
+const getNavItems = (t: any) => [
+  { path: '/dashboard', label: t('sidebar.dashboard'), icon: Activity },
+  { path: '/proxies', label: t('sidebar.proxies'), icon: Globe },
+  { path: '/rules', label: t('sidebar.rules'), icon: Shield },
+  { path: '/routing', label: t('sidebar.routing'), icon: RefreshCcw },
+  { path: '/dns', label: t('sidebar.dns'), icon: Antenna },
+  { path: '/evolution', label: t('evolution.title'), icon: Bolt },
+  { path: '/logs', label: t('sidebar.logs'), icon: FileText },
+  { path: '/settings', label: t('sidebar.settings'), icon: Settings },
+  { path: '/about', label: t('sidebar.about'), icon: Info },
+];
+
+const SidebarContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
+  const { t } = useTranslation();
+  const { mode, setMode } = useColorScheme();
+  const navItems = useMemo(() => getNavItems(t), [t]);
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <img src={logoUrl} alt="SniShaper" width={32} height={32} style={{ objectFit: 'contain' }} />
+        <Typography
+          variant="subtitle1"
+          noWrap
+          sx={{
+            fontWeight: 700,
+            letterSpacing: "0.12em"
+          }}>
+          SniShaper
+        </Typography>
+      </Box>
+
+      <Box component="nav" aria-label={t('sidebar.nav_label')} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 0.5, px: 1, py: 1, overflowY: 'auto' }}>
+        {navItems.map((item) => (
+          <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none', color: 'inherit' }} onClick={onNavigate}>
+            {({ isActive }) => (
+              <Box
+                sx={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: 1,
+                  bgcolor: isActive ? 'primary.main' : 'transparent',
+                  color: isActive ? 'primary.contrastText' : 'text.secondary',
+                  transition: 'background-color 0.15s',
+                  boxShadow: isActive ? 'inset 0 1px 0 rgba(255,255,255,0.1)' : 'none',
+                  '&::before': isActive
+                    ? {
+                        content: '""',
+                        position: 'absolute',
+                        left: 0,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 3,
+                        height: '60%',
+                        borderRadius: 2,
+                        bgcolor: 'primary.contrastText',
+                        opacity: 0.85,
+                      }
+                    : undefined,
+                  '&:hover': {
+                    bgcolor: isActive ? 'primary.main' : 'action.hover',
+                    color: isActive ? 'primary.contrastText' : 'text.primary',
+                  },
+                }}
+              >
+                <item.icon size={18} aria-hidden />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: isActive ? 700 : 500,
+                    textAlign: 'left',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '100%',
+                  }}>
+                  {item.label}
+                </Typography>
+              </Box>
+            )}
+          </NavLink>
+        ))}
+      </Box>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, p: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        <Tooltip title={mode === 'light' ? t('sidebar.dark_mode') : t('sidebar.light_mode')}>
+          <IconButton
+            size="small"
+            aria-label={mode === 'light' ? t('sidebar.dark_mode_aria') : t('sidebar.light_mode_aria')}
+            onClick={() => {
+              const next = mode === 'light' ? 'dark' : 'light';
+              setMode(next);
+              SetAppearanceMode(next).catch(() => {});
+            }}
+            color={mode === 'dark' ? 'primary' : 'default'}
+          >
+            {mode === 'light' ? <Sun size={18} /> : <Moon size={18} />}
+          </IconButton>
+        </Tooltip>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            minWidth: 48,
+            textAlign: 'center'
+          }}>
+          {mode === 'dark' ? t('sidebar.dark_mode') : t('sidebar.light_mode')}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
+
+export interface SidebarProps {
+  /** Temporary drawer state (narrow screens only). */
+  open?: boolean;
+  /** Fired when the user navigates; closes the temporary drawer. */
+  onNavigate?: () => void;
+}
+
+/**
+ * Adaptive sidebar.
+ *
+ * Wide screens (>= md / 900px): `variant="permanent"` — always visible, 240px,
+ * pixel-identical to the desktop build.
+ * Narrow screens (Android phones): `variant="temporary"` — an overlay drawer
+ * toggled by the ☰ button in the top toolbar.
+ */
+const Sidebar: React.FC<SidebarProps> = React.memo(({ open = false, onNavigate }) => {
+  const theme = useTheme();
+  const isWide = useMediaQuery(theme.breakpoints.up('md'));
+
+  const drawerPaperSx = {
+    width: DRAWER_WIDTH,
+    boxSizing: 'border-box' as const,
+    bgcolor: (t: any) => `color-mix(in srgb, ${t.palette.background.paper} 78%, transparent)`,
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    borderRight: '1px solid',
+    borderColor: 'divider',
+  };
+
+  if (isWide) {
+    return (
+      <Drawer
+        variant="permanent"
+        open
+        sx={{
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': drawerPaperSx,
+        }}
+      >
+        <SidebarContent />
+      </Drawer>
+    );
+  }
+
+  return (
+    <Drawer
+      variant="temporary"
+      open={open}
+      onClose={onNavigate}
+      ModalProps={{ keepMounted: true }}
+      sx={{
+        width: DRAWER_WIDTH,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': drawerPaperSx,
+      }}
+    >
+      <SidebarContent onNavigate={onNavigate} />
+    </Drawer>
+  );
+});
+
+export { SidebarContent };
+export default Sidebar;

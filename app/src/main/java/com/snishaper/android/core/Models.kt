@@ -465,6 +465,8 @@ data class EvolutionTask(
     val total: Int = 0,
     val results: List<EvolutionResult> = emptyList(),
     val tempRules: List<EvolutionTempRule> = emptyList(),
+    /** The engine's original payload, forwarded verbatim to the WebView. */
+    val rawJson: String = "",
 ) {
     val running: Boolean get() = status == "running" || status == "pending"
     val appliedCount: Int get() = tempRules.count { it.isApplied }
@@ -524,6 +526,7 @@ data class EvolutionTask(
                 total = o.int("total"),
                 results = results,
                 tempRules = tempRules,
+                rawJson = json,
             )
         }
     }

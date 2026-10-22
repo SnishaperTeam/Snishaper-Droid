@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +42,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.snishaper.android.R
+import com.snishaper.android.core.SnishaperEngine
 import com.snishaper.android.data.AppPreferences
 import com.snishaper.android.data.AppearanceMode
 import com.snishaper.android.ui.components.LocalSnackbarHostState
@@ -73,6 +75,7 @@ fun MainScaffold(
     onAppearanceChange: (AppearanceMode) -> Unit,
     onAutoStartProxyChange: (Boolean) -> Unit,
     onAutoUpdateRulesChange: (Boolean) -> Unit,
+    onUseDynamicColorChange: (Boolean) -> Unit,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -81,6 +84,19 @@ fun MainScaffold(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var restoredDrawerState by rememberSaveable { mutableStateOf(false) }
+
+    // Auto-start proxy: fires once per process when the engine becomes ready
+    // (desktop `auto_start` preference parity; DataStore, not engine settings).
+    val engineReady by SnishaperEngine.ready.collectAsState()
+    var autoStartHandled by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(preferences.autoStartProxy, engineReady) {
+        if (preferences.autoStartProxy && engineReady && !autoStartHandled &&
+            !SnishaperEngine.status.value.proxyRunning
+        ) {
+            autoStartHandled = true
+            runCatching { SnishaperEngine.startProxy() }
+        }
+    }
 
     // Restore the persisted drawer visibility once on cold start (DataStore persistence requirement).
     LaunchedEffect(Unit) {
@@ -189,6 +205,7 @@ fun MainScaffold(
                             onAppearanceChange = onAppearanceChange,
                             onAutoStartProxyChange = onAutoStartProxyChange,
                             onAutoUpdateRulesChange = onAutoUpdateRulesChange,
+                            onUseDynamicColorChange = onUseDynamicColorChange,
                         )
                     }
                     composable(AppDestination.About.route) {

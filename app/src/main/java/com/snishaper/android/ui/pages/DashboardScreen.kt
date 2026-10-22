@@ -1,18 +1,19 @@
 package com.snishaper.android.ui.pages
 
+import android.app.Activity
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,7 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,30 +33,101 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snishaper.android.R
+import com.snishaper.android.core.SnishaperEngine
+import com.snishaper.android.core.Stats
 import com.snishaper.android.ui.components.PageColumn
 import com.snishaper.android.ui.components.PageHeader
-import com.snishaper.android.ui.components.SkeletonNote
 import com.snishaper.android.ui.components.StatusPill
 import com.snishaper.android.ui.components.rememberToast
-import com.snishaper.android.ui.theme.LocalSnishaperExtraColors
+import com.snishaper.android.vpn.TunVpnService
+import com.snishaper.android.vpn.VpnInstaller
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
- * Dashboard skeleton. Desktop structure (`Dashboard.tsx:346-556`) minus the removed CA card:
- * header actions + Core Status card + Connection Info card.
+ * Dashboard: the real engine status (desktop `Dashboard.tsx:346-556` minus the removed
+ * certificate card). Start/stop the proxy, toggle the TUN-mode VpnService and watch the
+ * listen address and live traffic stats.
  */
 @Composable
 fun DashboardScreen(contentPadding: PaddingValues) {
-    val comingSoon = stringResource(id = R.string.common_coming_soon)
     val toast = rememberToast()
-    val extra = LocalSnishaperExtraColors.current
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val consentNeededText = stringResource(R.string.dashboard_vpn_consent_needed)
+    val vpnFailedText = stringResource(R.string.dashboard_vpn_failed)
+    val status by SnishaperEngine.status.collectAsStateWithLifecycle()
+    val ready by SnishaperEngine.ready.collectAsStateWithLifecycle()
+    var busy by remember { mutableStateOf(false) }
+    var stats by remember { mutableStateOf(Stats()) }
+
+    // VPN consent flow: VpnService.prepare returns null (already granted) directly, otherwise
+    // the returned intent is launched and RESULT_OK means the user granted it.
+    val vpnConsentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            runCatching {
+                context.startForegroundService(Intent(context, TunVpnService::class.java))
+            }.onFailure { toast("$vpnFailedText: ${it.message}") }
+        } else {
+            toast(consentNeededText)
+        }
+    }
+
+    LaunchedEffect(ready) {
+        if (!ready) return@LaunchedEffect
+        while (isActive) {
+            runCatching { SnishaperEngine.getStats() }.onSuccess { stats = it }
+            delay(2_000)
+        }
+    }
+
+    fun run(action: suspend () -> Unit) {
+        if (busy) return
+        scope.launch {
+            busy = true
+            runCatching { action() }.onFailure { toast(it.message ?: "操作失败") }
+            busy = false
+        }
+    }
+
+    fun toggleVpn() {
+        if (!ready) return
+        if (status.tunRunning) {
+            runCatching {
+                context.startService(
+                    Intent(context, TunVpnService::class.java).setAction(TunVpnService.ACTION_STOP),
+                )
+            }
+            return
+        }
+        val consent = VpnInstaller.prepare(context)
+        if (consent == null) {
+            runCatching {
+                context.startForegroundService(Intent(context, TunVpnService::class.java))
+            }.onFailure { toast("$vpnFailedText: ${it.message}") }
+        } else {
+            vpnConsentLauncher.launch(consent)
+        }
+    }
 
     PageColumn(contentPadding = contentPadding) {
         PageHeader(
@@ -60,92 +135,178 @@ fun DashboardScreen(contentPadding: PaddingValues) {
             titleRes = R.string.dashboard_title,
             subtitleRes = R.string.dashboard_subtitle,
             actions = {
-                Button(onClick = { toast(comingSoon) }) {
-                    Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                Button(
+                    enabled = ready && !busy,
+                    onClick = {
+                        run {
+                            if (status.proxyRunning) {
+                                SnishaperEngine.stopProxy()
+                                toast("代理已停止")
+                            } else {
+                                SnishaperEngine.startProxy()
+                                toast("代理已启动")
+                            }
+                        }
+                    },
+                ) {
+                    Icon(
+                        if (status.proxyRunning) Icons.Outlined.PowerSettingsNew else Icons.Outlined.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(id = R.string.dashboard_start_proxy))
+                    Text(
+                        stringResource(
+                            if (status.proxyRunning) R.string.dashboard_stop_proxy else R.string.dashboard_start_proxy,
+                        ),
+                    )
                 }
-                OutlinedButton(onClick = { toast(comingSoon) }) {
-                    Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(18.dp))
+                OutlinedButton(
+                    enabled = ready,
+                    onClick = { toggleVpn() },
+                ) {
+                    Icon(Icons.Outlined.VpnKey, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(id = R.string.dashboard_vpn))
+                    Text(
+                        stringResource(
+                            if (status.tunRunning) R.string.dashboard_vpn_stop else R.string.dashboard_vpn_start,
+                        ),
+                    )
                 }
             },
         )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Max),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            StatusCard(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                titleRes = R.string.dashboard_core_status,
-                icon = Icons.Outlined.Memory,
-            ) {
-                InfoRow(
-                    labelRes = R.string.dashboard_run_status,
-                    pillText = stringResource(id = R.string.common_stopped),
-                    pillColor = MaterialTheme.colorScheme.error,
-                )
-                InfoRow(
-                    labelRes = R.string.dashboard_work_mode,
-                    value = "TLS-RF",
-                )
-                InfoRow(
-                    labelRes = R.string.dashboard_port,
-                    value = "8080",
-                )
-                InfoRow(
-                    labelRes = R.string.dashboard_vpn_status,
-                    pillText = stringResource(id = R.string.common_off),
-                    pillColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            StatusCard(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                titleRes = R.string.dashboard_conn_info,
-                icon = Icons.Outlined.Bolt,
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.primary,
-                ) {
-                    Text(
-                        text = "127.0.0.1:8080",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    )
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val twoColumns = maxWidth >= 600.dp
+            if (twoColumns) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CoreStatusCard(Modifier.weight(1f), ready, status.runLabel(), status.listenPort, status.tunRunning)
+                    ConnectionCard(Modifier.weight(1f), status.listenAddr, status.proxyRunning)
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    StatusPill(
-                        text = stringResource(id = R.string.dashboard_ready),
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Spacer(Modifier.size(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    RuntimeCard(Modifier.weight(1f), ready, status.ipv6Available, status.lastError)
+                    TrafficCard(Modifier.weight(1f), stats)
                 }
+            } else {
+                CoreStatusCard(Modifier.fillMaxWidth(), ready, status.runLabel(), status.listenPort, status.tunRunning)
+                Spacer(Modifier.size(12.dp))
+                ConnectionCard(Modifier.fillMaxWidth(), status.listenAddr, status.proxyRunning)
+                Spacer(Modifier.size(12.dp))
+                RuntimeCard(Modifier.fillMaxWidth(), ready, status.ipv6Available, status.lastError)
+                Spacer(Modifier.size(12.dp))
+                TrafficCard(Modifier.fillMaxWidth(), stats)
             }
         }
+    }
+}
 
-        SkeletonNote()
-        Spacer(modifier = Modifier.size(4.dp))
-        Text(
-            text = "VPN（VpnService）与代理引擎将在功能阶段接入",
-            style = MaterialTheme.typography.bodySmall,
-            color = extra.success.copy(alpha = 0.8f),
+private fun com.snishaper.android.core.EngineStatus.runLabel(): String = when (proxyMode) {
+    "" -> "TLS-RF"
+    "transparent" -> "Transparent"
+    else -> proxyMode
+}
+
+@Composable
+private fun CoreStatusCard(
+    modifier: Modifier,
+    ready: Boolean,
+    mode: String,
+    port: Int,
+    vpnRunning: Boolean,
+) {
+    StatusCard(modifier, R.string.dashboard_core_status, Icons.Outlined.Memory) {
+        InfoRow(
+            labelRes = R.string.dashboard_run_status,
+            pillText = stringResource(
+                when {
+                    !ready -> R.string.dashboard_engine_offline
+                    SnishaperEngine.status.value.proxyRunning -> R.string.common_running
+                    else -> R.string.common_stopped
+                },
+            ),
+            pillColor = when {
+                !ready -> MaterialTheme.colorScheme.error
+                SnishaperEngine.status.value.proxyRunning -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.error
+            },
+        )
+        InfoRow(labelRes = R.string.dashboard_work_mode, value = mode)
+        InfoRow(labelRes = R.string.dashboard_port, value = port.toString())
+        InfoRow(
+            labelRes = R.string.dashboard_vpn_status,
+            value = if (vpnRunning) stringResource(R.string.common_on) else stringResource(R.string.common_off),
         )
     }
+}
+
+@Composable
+private fun ConnectionCard(modifier: Modifier, listenAddr: String, running: Boolean) {
+    StatusCard(modifier, R.string.dashboard_conn_info, Icons.Outlined.Bolt) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.primary,
+        ) {
+            Text(
+                text = listenAddr.ifEmpty { "127.0.0.1:8080" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            StatusPill(
+                text = stringResource(if (running) R.string.dashboard_ready else R.string.dashboard_not_ready),
+                containerColor = if (running) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RuntimeCard(modifier: Modifier, ready: Boolean, ipv6: Boolean, lastError: String) {
+    StatusCard(modifier, R.string.dashboard_runtime, Icons.Outlined.Speed) {
+        InfoRow(
+            labelRes = R.string.dashboard_ipv6,
+            value = stringResource(if (ipv6) R.string.dashboard_ipv6_ok else R.string.dashboard_ipv6_off),
+        )
+        InfoRow(labelRes = R.string.dashboard_engine, value = if (ready) "Go · snishaper-core v0.4.0" else "—")
+        if (lastError.isNotBlank()) {
+            Text(
+                text = lastError,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrafficCard(modifier: Modifier, stats: Stats) {
+    StatusCard(modifier, R.string.dashboard_traffic, Icons.Outlined.Speed) {
+        InfoRow(labelRes = R.string.dashboard_down, value = formatBytes(stats.down))
+        InfoRow(labelRes = R.string.dashboard_up, value = formatBytes(stats.up))
+        InfoRow(labelRes = R.string.dashboard_connections, value = stats.etc.toString())
+    }
+}
+
+private fun formatBytes(value: Long): String {
+    if (value < 1024) return "$value B"
+    val units = arrayOf("KB", "MB", "GB", "TB")
+    var size = value.toDouble()
+    var index = -1
+    while (size >= 1024 && index < units.lastIndex) {
+        size /= 1024
+        index++
+    }
+    return String.format("%.1f %s", size, units[index])
 }
 
 @Composable

@@ -1,6 +1,7 @@
 package com.snishaper.android.core
 
 import android.content.Context
+import android.util.Log
 import com.snishaper.core.mobile.App
 import com.snishaper.core.mobile.Listener
 import com.snishaper.core.mobile.Mobile
@@ -26,6 +27,9 @@ import org.json.JSONObject
  * data classes in `Models.kt` decode them.
  */
 object SnishaperEngine {
+
+    /** Logcat tag used by smoke tests: `adb logcat -s Snishaper:*`. */
+    const val LOG_TAG = "Snishaper"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -71,6 +75,7 @@ object SnishaperEngine {
     private val listener = object : Listener {
         override fun onLog(line: String) {
             appendLog(line)
+            Log.i(LOG_TAG, line)
             _logs.tryEmit(line)
         }
 
@@ -98,6 +103,7 @@ object SnishaperEngine {
         if (app != null) return
         scope.launch {
             runCatching {
+                Log.i(LOG_TAG, "engine: initializing (dataDir=${context.applicationContext.filesDir})")
                 AssetSeeder.seed(context.applicationContext)
                 val instance = Mobile.newApp(context.applicationContext.filesDir.absolutePath)
                 instance.setListener(listener)
@@ -108,7 +114,12 @@ object SnishaperEngine {
                 _tunStatus.value = TunStatus.fromJson(instance.getTUNStatusJSON())
                 _settings.value = AppSettings.fromJson(instance.getSettingsJSON())
                 _ready.value = true
+                Log.i(
+                    LOG_TAG,
+                    "engine: ready (core=${_buildInfo.value.coreVersion}, port=${_status.value.listenPort})",
+                )
             }.onFailure { error ->
+                Log.e(LOG_TAG, "engine: init failed: ${error.message}", error)
                 _status.update { it.copy(lastError = error.message ?: "engine init failed") }
             }
         }
@@ -117,6 +128,17 @@ object SnishaperEngine {
     private fun requireApp(): App = app ?: throw IllegalStateException("engine is not started yet")
 
     private suspend fun <T> io(block: suspend () -> T): T = withContext(Dispatchers.IO) { block() }
+
+    /**
+     * Raw access to the gomobile `App` for the JSON passthrough bridge.
+     *
+     * The WebView bridge mirrors the desktop API, whose payloads are the very
+     * same Go structs (see `proxy.SiteGroup` etc.). Using the raw `*JSON`
+     * methods keeps the shapes byte-identical to the desktop app instead of
+     * round-tripping through the Kotlin data classes in `Models.kt`, which only
+     * model the subset the old Compose UI needed.
+     */
+    suspend fun <T> withApp(block: (App) -> T): T = io { block(requireApp()) }
 
     // ------------------------------------------------------------------
     // Status / logs
@@ -156,13 +178,17 @@ object SnishaperEngine {
     // ------------------------------------------------------------------
 
     suspend fun startProxy() = io {
+        Log.i(LOG_TAG, "proxy: starting")
         requireApp().startProxy()
         refreshStatus()
+        Log.i(LOG_TAG, "proxy: started on ${_status.value.listenAddr}")
     }
 
     suspend fun stopProxy() = io {
+        Log.i(LOG_TAG, "proxy: stopping")
         requireApp().stopProxy()
         refreshStatus()
+        Log.i(LOG_TAG, "proxy: stopped")
     }
 
     suspend fun setListenPort(port: Int) = io {

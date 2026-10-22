@@ -1,17 +1,13 @@
 package com.snishaper.android
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import com.snishaper.android.webview.MainWebViewActivity
 
-class MainActivity : ComponentActivity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SnishaperApp()
-        }
-    }
-}
+/**
+ * Launcher activity.
+ *
+ * The UI is now the reused desktop React frontend hosted in a WebView, so this
+ * class is a thin, manifest-stable alias for [MainWebViewActivity]. Keeping the
+ * name means the launcher intent filter and the smoke-test script
+ * (`com.snishaper.android/.MainActivity`) stay valid.
+ */
+class MainActivity : MainWebViewActivity()

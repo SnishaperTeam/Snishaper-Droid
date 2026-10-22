@@ -189,6 +189,30 @@ jobs:
       - name: Verify AAR contract (CA-free / ABI / minSdk / 16KB)
         run: python3 scripts/verify_aar.py
 
+      # ----- Frontend (reused desktop React bundle) --------------------------
+      # The Android UI is the desktop React frontend (React 19 + MUI 9) reused
+      # verbatim: frontend-android/ builds with vite straight into
+      # app/src/main/assets/frontend/ (APK assets). CA-free (verified below).
+      - name: Setup Node (frontend build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-android/package-lock.json
+
+      - name: Build frontend bundle (CA-free)
+        run: |
+          set -euo pipefail
+          cd frontend-android
+          npm install --no-audit --no-fund
+          npx vite build
+          cd ..
+          # CA guard + relative-path guard (same checks as scripts/build-frontend.ps1)
+          test -f app/src/main/assets/frontend/index.html
+          ! grep -rqE 'InstallCA|ExportCert|RegenerateCert|GetCACertPEM|GetCACertPath|GetCAInstallStatus|GetInstalledCerts|OpenCertDir|OpenCAFile|UninstallCert' app/src/main/assets/frontend/assets/
+          echo "--- frontend bundle ---"
+          du -sh app/src/main/assets/frontend/assets
+
       # ----- Build -----------------------------------------------------------
       - name: Build (lint / test / assembleRelease / bundleRelease)
         run: |

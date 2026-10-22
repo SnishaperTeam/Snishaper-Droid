@@ -1,0 +1,279 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Plus, Antenna, Edit, Delete, ChevronUp, ChevronDown,
+  Bolt, CheckCircle, Shield, Globe, AlertCircle
+} from '../lib/icons';
+import {
+  GetDNSNodes, AddDNSNode, UpdateDNSNode, DeleteDNSNode,
+  SetDNSNodePriority, TestDNSNode
+} from '../api/bindings';
+import Modal from '../components/Modal';
+import { toast } from '../lib/toast';
+import { splitListInput } from '../lib/utils';
+import { useTranslation } from '../i18n/I18nContext';
+
+import {
+  Box, Typography, Button, IconButton, TextField, Switch, CircularProgress,
+} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+
+interface DNSNode {
+  id: string; name: string; url: string; sni?: string; ips?: string[];
+  ech_enabled: boolean; ech_profile_id?: string; quic: boolean;
+  enabled: boolean;
+}
+
+const defaultNode: Partial<DNSNode> = { name: '', url: '', sni: '', ips: [], ech_enabled: false, ech_profile_id: '', quic: false, enabled: true };
+
+const DNSNodeItem: React.FC<{
+  node: DNSNode; index: number; total: number;
+  onEdit: (node: DNSNode) => void; onDelete: (id: string) => void;
+  onMoveUp: (id: string, idx: number) => void; onMoveDown: (id: string, idx: number) => void;
+  onTest: (id: string) => void; testResult: any; isTesting: boolean;
+}> = ({ node, index, total, onEdit, onDelete, onMoveUp, onMoveDown, onTest, testResult, isTesting }) => {
+  const { t } = useTranslation();
+  const tags: { label: string; color: string; bg: string | ((t: any) => string); border: string | ((t: any) => string) }[] = [];
+  if (node.ech_enabled) tags.push({ label: 'ECH', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)', border: 'rgba(6,182,212,0.2)' });
+  if (node.quic) tags.push({ label: 'QUIC', color: 'secondary.main', bg: (theme: any) => alpha(theme.palette.secondary.main, 0.1), border: (theme: any) => alpha(theme.palette.secondary.main, 0.2) });
+  if (node.sni) tags.push({ label: `${t('evolution.sni')}: ${node.sni}`, color: 'primary.main', bg: (theme: any) => alpha(theme.palette.primary.main, 0.1), border: (theme: any) => alpha(theme.palette.primary.main, 0.2) });
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5, px: 2, borderBottom: 1, borderColor: 'divider', transition: 'background-color 0.2s', '&:hover': { bgcolor: 'action.hover' }, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
+        <IconButton size="small" aria-label={t('dns.move_up')} onClick={() => onMoveUp(node.id, index)} disabled={index === 0} sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' }, '&.Mui-disabled': { opacity: 0.2 } }}>
+          <ChevronUp size={14} />
+        </IconButton>
+        <Typography variant="caption" sx={{ fontWeight: 900, color: 'text.secondary', width: 20, textAlign: 'center' }}>{index + 1}</Typography>
+        <IconButton size="small" aria-label={t('dns.move_down')} onClick={() => onMoveDown(node.id, index)} disabled={index === total - 1} sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' }, '&.Mui-disabled': { opacity: 0.2 } }}>
+          <ChevronDown size={14} />
+        </IconButton>
+      </Box>
+
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, bgcolor: node.enabled ? 'success.main' : 'text.disabled', boxShadow: node.enabled ? '0 0 6px rgba(34,197,94,0.4)' : 'none' }} />
+          <Typography variant="body2" sx={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', py: 0.25, outline: '1px solid transparent' }}>{node.name || t('common.unknown')}</Typography>
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{node.url}</Typography>
+        {tags.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+            {tags.map((tag, i) => (
+              <Typography key={i} variant="caption" sx={{ fontSize: 9, fontWeight: 700, px: 1, py: 0.25, borderRadius: '999px', border: 1, color: tag.color, bgcolor: tag.bg, borderColor: tag.border, lineHeight: 1.6 }}>
+                {tag.label}
+              </Typography>
+            ))}
+          </Box>
+        )}
+        {node.ips && node.ips.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 0.75, mt: 0.5, flexWrap: 'wrap' }}>
+            {node.ips.map((ip, i) => (
+              <Typography key={i} variant="caption" sx={{ fontSize: 9, bgcolor: 'action.hover', px: 1, py: 0.25, borderRadius: 1, border: 1, borderColor: 'divider', color: 'text.secondary' }}>
+                {ip}
+              </Typography>
+            ))}
+          </Box>
+        )}
+      </Box>
+
+      <Box sx={{ flexShrink: 0, width: { xs: 0, sm: 112 }, display: { xs: 'none', sm: 'flex' }, justifyContent: 'flex-end' }}>
+        {isTesting ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: 'primary.main' }}>
+            <CircularProgress size={14} color="primary" />
+            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>{t('dns.test')}...</Typography>
+          </Box>
+        ) : testResult ? (
+          testResult.success ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
+                <CheckCircle size={12} />
+                <Typography variant="caption" sx={{ fontWeight: 900 }}>{testResult.latency}</Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 112 }}>{testResult.ips?.[0]}</Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'error.main' }} title={testResult.error}>
+              <AlertCircle size={12} />
+              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>{testResult.error || t('common.failed')}</Typography>
+            </Box>
+          )
+        ) : null}
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+        <Button size="small" variant="text" onClick={() => onTest(node.id)} disabled={isTesting}>{t('dns.test')}</Button>
+        <IconButton size="small" aria-label={t('common.edit')} onClick={() => onEdit(node)} sx={{ color: 'text.secondary', '&:hover': { bgcolor: 'action.hover', color: 'primary.main' } }}>
+          <Edit size={14} />
+        </IconButton>
+        <IconButton size="small" aria-label={t('common.delete')} color="error" onClick={() => onDelete(node.id)}>
+          <Delete size={14} />
+        </IconButton>
+      </Box>
+    </Box>
+  );
+};
+
+const DNSNodeForm: React.FC<{ initialData?: DNSNode | null; onSubmit: (data: any) => void }> = ({ initialData, onSubmit }) => {
+  const { t } = useTranslation();
+  const [form, setForm] = useState<any>({ ...defaultNode, ...initialData });
+  const [ipInput, setIpInput] = useState((initialData?.ips || []).join('\n'));
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ips = splitListInput(ipInput);
+    onSubmit({ ...form, ips });
+  };
+
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      bgcolor: 'action.hover',
+      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main' },
+    },
+  };
+
+  return (
+    <form id="dns-form" onSubmit={handleSubmit}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', xl: 'repeat(3, 1fr)' }, gap: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 900, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
+                <Antenna size={10} color="primary.main" />
+              </Box>
+              {t('dns.node_name')}
+            </Typography>
+            <TextField id="dns-name" type="text" required size="small" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} sx={inputSx} />
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 900, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
+                <Globe size={10} color="primary.main" />
+              </Box>
+              {t('dns.doh_url')}
+            </Typography>
+            <TextField id="dns-url" type="text" required size="small" value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} sx={{ ...inputSx, '& input': { } }} />
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', xl: 'repeat(3, 1fr)' }, gap: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 900, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t('dns.sni_fake')}</Typography>
+            <TextField type="text" size="small" value={form.sni || ''} onChange={e => setForm({ ...form, sni: e.target.value })} sx={inputSx} />
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 900, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t('dns.bootstrap_ips')}</Typography>
+            <TextField multiline rows={2} size="small" value={ipInput} onChange={e => setIpInput(e.target.value)} sx={{ ...inputSx, '& textarea': { } }} />
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3, 1fr)' }, gap: 1.5, p: 2, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 2 }}>
+          {[
+            { label: t('common.enabled'), field: 'enabled' },
+            { label: 'ECH', field: 'ech_enabled' },
+            { label: 'QUIC', field: 'quic' },
+          ].map(({ label, field }) => (
+            <Box key={field} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 2, border: 1, borderColor: 'divider', px: 2, py: 1.5, cursor: 'pointer', '&:hover': { borderColor: 'primary.main' }, transition: 'all 0.2s', minWidth: 0 }}>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', py: 0.25, outline: '1px solid transparent' }}>{label}</Typography>
+              <Switch size="small" checked={Boolean(form[field])} onChange={(e) => setForm({ ...form, [field]: e.target.checked })} sx={{ flexShrink: 0 }} />
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </form>
+  );
+};
+
+const DNS: React.FC = () => {
+  const { t } = useTranslation();
+  const [nodes, setNodes] = useState<DNSNode[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingNode, setEditingNode] = useState<DNSNode | null>(null);
+  const [pendingDeleteNode, setPendingDeleteNode] = useState<DNSNode | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, any>>({});
+  const [testingIds, setTestingIds] = useState<Set<string>>(new Set());
+
+  const loadData = async () => { setNodes((await GetDNSNodes()) || []); };
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => { setEditingNode(null); setIsModalOpen(true); };
+  const handleEdit = (node: DNSNode) => { setEditingNode(node); setIsModalOpen(true); };
+  const handleFormSubmit = async (data: any) => {
+    if (editingNode?.id) await UpdateDNSNode({ ...data, id: editingNode.id });
+    else await AddDNSNode(data);
+    setIsModalOpen(false);
+    await loadData();
+    toast.success(editingNode ? t('dns.notifications.updated') : t('dns.notifications.added'));
+  };
+  const handleDelete = async () => {
+    if (!pendingDeleteNode?.id) return;
+    await DeleteDNSNode(pendingDeleteNode.id);
+    setPendingDeleteNode(null);
+    await loadData();
+    toast.success(t('dns.notifications.deleted'));
+  };
+  const handleMoveUp = async (id: string, idx: number) => { if (idx <= 0) return; await SetDNSNodePriority(id, idx - 1); await loadData(); };
+  const handleMoveDown = async (id: string, idx: number) => { if (idx >= nodes.length - 1) return; await SetDNSNodePriority(id, idx + 1); await loadData(); };
+  const handleTest = async (id: string) => {
+    setTestingIds(prev => new Set(prev).add(id));
+    try { const result = await TestDNSNode(id); setTestResults(prev => ({ ...prev, [id]: result })); }
+    catch (err: any) { setTestResults(prev => ({ ...prev, [id]: { success: false, error: String(err) } })); }
+    finally { setTestingIds(prev => { const s = new Set(prev); s.delete(id); return s; }); }
+  };
+  const handleTestAll = async () => { for (const node of nodes) { void handleTest(node.id); } };
+
+  return (
+    <Box sx={{ flexGrow: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box sx={{ pt: 4, flexShrink: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-end' }, gap: 2, mb: 6 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ p: 1.25, borderRadius: 1.5, border: 1, color: 'primary.main', bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1), borderColor: (theme) => alpha(theme.palette.primary.main, 0.1), display: 'flex' }}>
+            <Antenna size={20} />
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>{t('dns.title')}</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button onClick={handleTestAll} variant="outlined" size="small" startIcon={<Bolt size={14} />}>{t('dns.test_all')}</Button>
+          <Button onClick={handleAdd} variant="contained" color="primary" size="small" startIcon={<Plus size={16} strokeWidth={3} />}>{t('dns.add_node')}</Button>
+        </Box>
+      </Box>
+
+      <Box sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', width: '100%', pb: 6 }}>
+      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden', bgcolor: 'background.paper' }}>
+        {nodes.length === 0 ? (
+          <Box sx={{ py: 12, color: 'text.secondary', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Antenna size={48} strokeWidth={1} />
+            <Typography variant="body2" sx={{ mt: 1.5 }}>{t('dns.no_nodes')}</Typography>
+          </Box>
+        ) : (
+          nodes.map((node, idx) => (
+            <DNSNodeItem key={node.id} node={node} index={idx} total={nodes.length}
+              onEdit={handleEdit} onDelete={(id) => setPendingDeleteNode(nodes.find(n => n.id === id) || null)}
+              onMoveUp={handleMoveUp} onMoveDown={handleMoveDown} onTest={handleTest}
+              testResult={testResults[node.id]} isTesting={testingIds.has(node.id)} />
+          ))
+        )}
+      </Box>
+      </Box>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingNode ? t('dns.edit_node') : t('dns.add_node')} maxWidth="2xl"
+        footer={<>
+          <Button type="button" onClick={() => setIsModalOpen(false)} variant="outlined" size="small">{t('common.cancel')}</Button>
+          <Button type="submit" form="dns-form" variant="contained" color="primary" size="small" startIcon={<Shield size={16} />}>
+            {editingNode ? t('dns.edit_node') : t('dns.add_node')}
+          </Button>
+        </>}>
+        <DNSNodeForm initialData={editingNode} onSubmit={handleFormSubmit} />
+      </Modal>
+
+      <Modal isOpen={Boolean(pendingDeleteNode)} onClose={() => setPendingDeleteNode(null)} title={t('dns.delete_node')} subtitle={t('dns.delete_hint')} maxWidth="md"
+        footer={<>
+          <Button type="button" onClick={() => setPendingDeleteNode(null)} variant="outlined" size="small">{t('common.cancel')}</Button>
+          <Button type="button" onClick={handleDelete} variant="contained" color="error" size="small">{t('common.confirm')}</Button>
+        </>}>
+        <Typography variant="body2" color="text.secondary">
+          {t('common.delete')} <Box component="span" sx={{ mx: 0.5, fontWeight: 'bold', color: 'text.primary' }}>{pendingDeleteNode?.name || t('common.unknown')}</Box>{t('dns.delete_warning')}
+        </Typography>
+      </Modal>
+    </Box>
+  );
+};
+
+export default DNS;

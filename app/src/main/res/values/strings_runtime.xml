@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Runtime / Dashboard strings added in Stage 4 (kept in a separate file so page
+     implementations can add their own string files without merge conflicts). -->
+<resources>
+    <string name="dashboard_vpn_pending">VpnService 即将接入</string>
+    <string name="dashboard_engine_offline">未就绪</string>
+    <string name="dashboard_not_ready">未就绪</string>
+    <string name="dashboard_runtime">运行时</string>
+    <string name="dashboard_ipv6">IPv6</string>
+    <string name="dashboard_ipv6_ok">可用</string>
+    <string name="dashboard_ipv6_off">不可用</string>
+    <string name="dashboard_engine">引擎</string>
+    <string name="dashboard_traffic">流量统计</string>
+    <string name="dashboard_down">下行</string>
+    <string name="dashboard_up">上行</string>
+    <string name="dashboard_connections">连接数</string>
+</resources>

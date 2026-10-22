@@ -28,6 +28,13 @@ gomobile/go.work.sum
 app/libs/*.aar
 app/libs/*-sources.jar
 
+# Frontend build output: produced by scripts/build-frontend.ps1 (vite) from
+# frontend-android/, NOT committed. CI rebuilds it before assembling the APK.
+app/src/main/assets/frontend/
+
+# Node (frontend-android) dependencies
+frontend-android/node_modules/
+
 # Internal working documents (CA/UI analysis reports and the bridge contract)
 # are kept locally for development but are NOT published in this repository.
 /docs/analysis/

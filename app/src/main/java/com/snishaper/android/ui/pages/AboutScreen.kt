@@ -1,5 +1,7 @@
 package com.snishaper.android.ui.pages
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,30 +23,36 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snishaper.android.BuildConfig
 import com.snishaper.android.R
+import com.snishaper.android.core.SnishaperEngine
 import com.snishaper.android.ui.components.PageColumn
 import com.snishaper.android.ui.components.SectionHeader
 import com.snishaper.android.ui.components.SettingRow
-import com.snishaper.android.ui.components.SkeletonNote
 import com.snishaper.android.ui.components.StatusPill
-import com.snishaper.android.ui.components.rememberToast
+
+private const val ABOUT_URL = "https://snishaper.org"
+private const val GITHUB_URL = "https://github.com/snishaper/snishaper"
 
 /**
- * About skeleton (`About.tsx:206-358`): hero (logo/version/channel), description, feature rows,
- * community rows and the copyright footer. App-update UI is removed (store-managed updates).
+ * About page (desktop `About.tsx:206-358`): hero (logo/version/channel), description,
+ * feature rows, community rows with real external links, copyright footer. App-update UI
+ * is removed (store-managed updates); no CA feature is listed (zero CA surface).
  */
 @Composable
 fun AboutScreen(contentPadding: PaddingValues) {
-    val comingSoon = stringResource(id = R.string.common_coming_soon)
-    val toast = rememberToast()
+    val context = LocalContext.current
+    val buildInfo by SnishaperEngine.buildInfo.collectAsStateWithLifecycle()
 
     PageColumn(contentPadding = contentPadding) {
         Surface(
@@ -72,7 +80,7 @@ fun AboutScreen(contentPadding: PaddingValues) {
                 Text(
                     text = stringResource(id = R.string.about_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Spacer(modifier = Modifier.size(12.dp))
                 Row(
@@ -81,12 +89,12 @@ fun AboutScreen(contentPadding: PaddingValues) {
                 ) {
                     StatusPill(
                         text = "${stringResource(id = R.string.about_version)} ${BuildConfig.VERSION_NAME}",
-                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                        contentColor = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                     StatusPill(
                         text = stringResource(id = R.string.about_channel_stable),
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -113,6 +121,20 @@ fun AboutScreen(contentPadding: PaddingValues) {
             )
         }
 
+        if (buildInfo.coreVersion.isNotBlank()) {
+            SettingRow(
+                titleRes = R.string.about_core_version,
+                icon = Icons.Outlined.Settings,
+                trailing = {
+                    Text(
+                        text = buildInfo.coreVersion,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+            )
+        }
+
         SectionHeader(titleRes = R.string.about_features, icon = Icons.Outlined.Bolt)
         SettingRow(titleRes = R.string.about_feature_ech, icon = Icons.Outlined.Lock)
         SettingRow(titleRes = R.string.about_feature_tlsfrag, icon = Icons.Outlined.Settings)
@@ -123,7 +145,11 @@ fun AboutScreen(contentPadding: PaddingValues) {
             titleRes = R.string.about_website,
             icon = Icons.Outlined.Public,
             trailing = {
-                TextButton(onClick = { toast(comingSoon) }) {
+                TextButton(onClick = {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ABOUT_URL)))
+                    }
+                }) {
                     Text(stringResource(id = R.string.about_website))
                 }
             },
@@ -132,13 +158,16 @@ fun AboutScreen(contentPadding: PaddingValues) {
             titleRes = R.string.about_github,
             icon = Icons.Outlined.Link,
             trailing = {
-                TextButton(onClick = { toast(comingSoon) }) {
+                TextButton(onClick = {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)))
+                    }
+                }) {
                     Text("GitHub")
                 }
             },
         )
 
-        SkeletonNote()
         Text(
             text = stringResource(id = R.string.about_copyright),
             style = MaterialTheme.typography.bodySmall,
