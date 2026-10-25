@@ -171,6 +171,9 @@ internal class EngineBridge(private val webView: WebView) {
             "AddUpstream" -> app.addUpstreamJSON(a.obj(0).toString())
             "UpdateUpstream" -> { app.updateUpstreamJSON(a.obj(0).toString()); null }
             "DeleteUpstream" -> { app.deleteUpstream(a.string(0)); null }
+            "GetRulesLayerInfo" -> parse(app.getRulesLayerInfoJSON())
+            "RevertSiteGroupToUpstream" -> { app.revertSiteGroupToUpstream(a.string(0)); null }
+            "RevertUpstreamConfigToUpstream" -> { app.revertUpstreamConfigToUpstream(a.string(0)); null }
 
             // ---- DNS -------------------------------------------------
             "GetDNSNodes" -> parse(app.getDNSNodesJSON())

@@ -301,6 +301,50 @@ func (a *App) DeleteUpstream(id string) (err error) {
 	return nil
 }
 
+// GetRulesLayerInfoJSON returns per-entry rule layer information.
+func (a *App) GetRulesLayerInfoJSON() (out string) {
+	defer recoverString(&out)
+	a.opMu.Lock()
+	defer a.opMu.Unlock()
+	rm, _, err := a.engineLocked()
+	if err != nil {
+		return "{}"
+	}
+	return marshalJSON(rm.GetRulesLayerInfo())
+}
+
+// RevertSiteGroupToUpstream discards user-layer changes of a site group.
+func (a *App) RevertSiteGroupToUpstream(id string) (err error) {
+	defer recoverError(&err)
+	a.opMu.Lock()
+	defer a.opMu.Unlock()
+	rm, _, err := a.engineLocked()
+	if err != nil {
+		return err
+	}
+	if err := rm.RevertSiteGroupToUpstream(strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	a.afterConfigChangedLocked()
+	return nil
+}
+
+// RevertUpstreamConfigToUpstream discards user-layer changes of an upstream.
+func (a *App) RevertUpstreamConfigToUpstream(id string) (err error) {
+	defer recoverError(&err)
+	a.opMu.Lock()
+	defer a.opMu.Unlock()
+	rm, _, err := a.engineLocked()
+	if err != nil {
+		return err
+	}
+	if err := rm.RevertUpstreamConfigToUpstream(strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	a.afterConfigChangedLocked()
+	return nil
+}
+
 // GetDNSNodesJSON returns all DoH nodes as JSON.
 func (a *App) GetDNSNodesJSON() (out string) {
 	defer recoverString(&out)

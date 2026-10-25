@@ -228,6 +228,9 @@ export const DeleteUpstream = (id: string) => appCall('DeleteUpstream', id);
 export const GetSiteGroups = () => appCall('GetSiteGroups');
 export const UpdateSiteGroup = (sg: any) => appCall('UpdateSiteGroup', sg);
 export const UpdateUpstream = (u: any) => appCall('UpdateUpstream', u);
+export const GetRulesLayerInfo = () => appCall('GetRulesLayerInfo');
+export const RevertSiteGroupToUpstream = (id: string) => appCall('RevertSiteGroupToUpstream', id);
+export const RevertUpstreamConfigToUpstream = (id: string) => appCall('RevertUpstreamConfigToUpstream', id);
 
 // ---------------------------------------------------------------------------
 // Logs
