@@ -3,7 +3,7 @@ module github.com/SnishaperTeam/snishaper-droid/gomobile
 go 1.27.0
 
 require (
-	github.com/SnishaperTeam/snishaper-core v0.7.0
+	github.com/SnishaperTeam/snishaper-core v0.8.0
 	github.com/sagernet/sing v0.9.6
 	github.com/sagernet/sing-tun v0.9.6
 )
@@ -114,7 +114,7 @@ require (
 	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55 // indirect
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a // indirect
 	github.com/tailscale/peercred v0.0.0-20250107143737-35a0c7bd7edc // indirect
-	github.com/things-go/go-socks5 v0.1.3 // indirect
+	github.com/things-go/go-socks5 v0.1.4 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
