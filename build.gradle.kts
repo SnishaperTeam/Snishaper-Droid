@@ -4,6 +4,6 @@
 // applied (it fails with "no longer required since AGP 9.0"). Only the Compose compiler
 // Gradle plugin is needed on top of AGP's built-in Kotlin.
 plugins {
-    id("com.android.application") version "9.4.1" apply false
+    id("com.android.application") version "9.5.0" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
 }
