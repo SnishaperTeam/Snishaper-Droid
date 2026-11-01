@@ -79,29 +79,19 @@ internal class WailsEventPump(private val bridge: EngineBridge) {
             combine(
                 SnishaperEngine.status,
                 SnishaperEngine.evolution,
-            ) { status, _ -> status }
+            ) { status, _ ->
+                status
+            }
                 .distinctUntilChanged()
-                .collect { status ->
-                    val payload = JSONObject()
-                        .put("proxyRunning", status.proxyRunning)
-                        .put("proxyMode", status.proxyMode)
-                        .put("tunRunning", status.tunRunning)
-                        .put("tunMessage", status.tunMessage)
-                        .put("ipv6Available", status.ipv6Available)
-                        .put("listenPort", status.listenPort)
-                        .put("listenAddr", status.listenAddr)
-                        .put("systemProxyActive", false) // no system proxy on Android
-                    bridge.emit("app:state_changed", payload.toString())
-                    bridge.emit("app:state", payload.toString())
-                }
+                .collect(::emitAppState)
         }
 
         // --- app:route ---------------------------------------------
         scope.launch {
-            SnishaperEngine.routes.collect { route ->
+            SnishaperEngine.routes.collect { (domain, mode) ->
                 val payload = JSONObject()
-                    .put("domain", route.domain)
-                    .put("mode", route.mode)
+                    .put("domain", domain)
+                    .put("mode", mode)
                 bridge.emit("app:route", payload.toString())
             }
         }
@@ -114,13 +104,28 @@ internal class WailsEventPump(private val bridge: EngineBridge) {
                 .collect { raw ->
                     if (raw.isBlank()) return@collect
                     val finished = runCatching { JSONObject(raw).optBoolean("finished", false) }
-                        .getOrDefault(false)
+                        .getOrDefault(defaultValue = false)
                     bridge.emit(
                         if (finished) "evolution:complete" else "evolution:progress",
                         raw,
                     )
                 }
         }
+    }
+
+    /** Builds and emits `app:state_changed` / `app:state` for one status update. */
+    private fun emitAppState(status: com.snishaper.android.core.EngineStatus) {
+        val payload = JSONObject()
+            .put("proxyRunning", status.proxyRunning)
+            .put("proxyMode", status.proxyMode)
+            .put("tunRunning", status.tunRunning)
+            .put("tunMessage", status.tunMessage)
+            .put("ipv6Available", status.ipv6Available)
+            .put("listenPort", status.listenPort)
+            .put("listenAddr", status.listenAddr)
+            .put("systemProxyActive", false) // no system proxy on Android
+        bridge.emit("app:state_changed", payload.toString())
+        bridge.emit("app:state", payload.toString())
     }
 
     fun stop() {

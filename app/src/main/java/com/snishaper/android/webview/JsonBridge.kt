@@ -83,13 +83,6 @@ internal object JsonBridge {
             "})();"
     }
 
-    /** Parses a JSON object, returning an empty object for broken input. */
-    fun parseObject(raw: String): JSONObject =
-        runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
-
-    /** Parses a JSON array, returning an empty array for broken input. */
-    fun parseArray(raw: String): JSONArray =
-        runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
 }
 
 /** A call that cannot be served (unknown method, bad arguments, engine error). */

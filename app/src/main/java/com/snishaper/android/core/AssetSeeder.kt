@@ -21,7 +21,7 @@ object AssetSeeder {
     }
 
     private fun copyIfMissing(context: Context, assetPath: String, target: File) {
-        if (target.exists() && target.length() > 0L) return
+        if (target.exists() && (target.length() > 0L)) return
         target.parentFile?.mkdirs()
         runCatching {
             context.assets.open(assetPath).use { input ->

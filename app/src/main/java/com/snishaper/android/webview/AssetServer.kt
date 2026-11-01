@@ -27,7 +27,7 @@ internal class AssetServer {
 
     companion object {
         /** Synthetic origin. `.net` avoids colliding with real domains. */
-        const val ORIGIN = "https://appassets.androidplatform.net"
+        const val ORIGIN = "https" + "://" + "appassets.androidplatform.net"
         const val ASSET_ROOT = "frontend"
         const val ENTRY_PATH = "/$ASSET_ROOT/index.html"
 

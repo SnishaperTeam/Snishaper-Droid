@@ -2,11 +2,9 @@ package com.snishaper.android.webview
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
@@ -15,11 +13,17 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.Insets
+import androidx.core.graphics.toColorInt
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import com.snishaper.android.BuildConfig
 import com.snishaper.android.core.SnishaperEngine
 import com.snishaper.android.vpn.TunVpnService
@@ -66,21 +70,50 @@ open class MainWebViewActivity : ComponentActivity() {
             .onFailure { Log.e(TAG, "vpn: consent launch failed: ${it.message}") }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         SnishaperEngine.initialize(applicationContext)
 
+        // Root container that turns window insets (system bars, display
+        // cutout, IME) into padding around the WebView, so web content never
+        // sits under the status / navigation bars. Doing this natively is more
+        // reliable than CSS env(safe-area-inset-*), which WebView only exposes
+        // from M136 (fullscreen WebViews only) / M144 (all WebViews). It also
+        // restores keyboard resizing, which adjustResize no longer provides
+        // once edge-to-edge is enabled (API 30+).
+        val root = FrameLayout(this).apply {
+            ViewCompat.setOnApplyWindowInsetsListener(this) { view, windowInsets ->
+                val types = WindowInsetsCompat.Type.systemBars() or
+                    WindowInsetsCompat.Type.displayCutout() or
+                    WindowInsetsCompat.Type.ime()
+                val insets = windowInsets.getInsets(types)
+                view.updatePadding(
+                    left = insets.left,
+                    top = insets.top,
+                    right = insets.right,
+                    bottom = insets.bottom,
+                )
+                // Zero out the handled types instead of consuming the whole
+                // object: WebView still gets notified when insets change, but
+                // never applies the same padding twice (no double padding and
+                // no "ghost" padding left over when the keyboard hides).
+                WindowInsetsCompat.Builder(windowInsets)
+                    .setInsets(types, Insets.NONE)
+                    .build()
+            }
+        }
+
         webView = WebView(this).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
             )
-            setBackgroundColor(Color.parseColor("#0E1116"))
+            setBackgroundColor("#0E1116".toColorInt())
             overScrollMode = WebView.OVER_SCROLL_NEVER
         }
+        root.addView(webView)
 
         configureSettings(webView.settings)
 
@@ -96,8 +129,9 @@ open class MainWebViewActivity : ComponentActivity() {
              *
              * `file://` is an opaque origin, so Chromium rejects the
              * `<script type="module">` tags Vite emits and the page stays blank.
-             * Serving over `https://appassets.androidplatform.net` restores
-             * ES-module loading plus normal localStorage/sessionStorage.
+             * Serving over the synthetic HTTPS origin (host
+             * `appassets.androidplatform.net`) restores ES-module loading plus
+             * normal localStorage/sessionStorage.
              */
             override fun shouldInterceptRequest(
                 view: WebView,
@@ -111,11 +145,10 @@ open class MainWebViewActivity : ComponentActivity() {
                 val url = request.url
                 // Everything served by the asset server stays in the WebView;
                 // external links go to the system browser.
-                if (assetServer.handles(url)) return false
-                return runCatching {
+                return !assetServer.handles(url) && runCatching {
                     startActivity(Intent(Intent.ACTION_VIEW, url))
                     true
-                }.getOrDefault(false)
+                }.getOrDefault(defaultValue = false)
             }
 
             override fun onPageFinished(view: WebView, url: String) {
@@ -127,7 +160,7 @@ open class MainWebViewActivity : ComponentActivity() {
                 detail: RenderProcessGoneDetail,
             ): Boolean {
                 // didCrash() is API 26+; minSdk is 24
-                val crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail.didCrash()
+                val crashed = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) && detail.didCrash()
                 Log.e(TAG, "webview: render process gone (crashed=$crashed)")
                 recreate()
                 return true
@@ -141,7 +174,7 @@ open class MainWebViewActivity : ComponentActivity() {
             }
         }
 
-        setContentView(webView)
+        setContentView(root)
 
         if (BuildConfig.DEBUG) {
             WebView.setWebContentsDebuggingEnabled(true)
@@ -153,7 +186,7 @@ open class MainWebViewActivity : ComponentActivity() {
 
         onBackPressedDispatcher.addCallback(
             this,
-            object : OnBackPressedCallback(true) {
+            object : OnBackPressedCallback(enabled = true) {
                 override fun handleOnBackPressed() {
                     // The SPA keeps a react-router history; prefer it over closing.
                     if (webView.canGoBack()) webView.goBack() else finish()
@@ -162,10 +195,12 @@ open class MainWebViewActivity : ComponentActivity() {
         )
     }
 
+    // The bundled SPA is fully trusted (it ships inside the APK), so keeping
+    // JavaScript enabled is intentional; the lint warning is expected here.
+    @SuppressLint("SetJavaScriptEnabled")
     private fun configureSettings(settings: WebSettings) {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true // the frontend persists prefs in localStorage
-        settings.databaseEnabled = true
         settings.allowFileAccess = true
         settings.allowContentAccess = true
         settings.mediaPlaybackRequiresUserGesture = false

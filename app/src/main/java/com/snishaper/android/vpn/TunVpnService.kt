@@ -1,5 +1,6 @@
 package com.snishaper.android.vpn
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -25,6 +26,11 @@ import kotlinx.coroutines.withContext
  * `SnishaperEngine.startTun(fd, mtu)`; the sing-tun handler inside the core reads packets
  * from that fd (with_gvisor). Mirrors the desktop TUN mode minus the CA surface.
  */
+// The app's whole purpose is a personal proxy with TUN capture; this is exactly
+// the "core VPN functionality" case the Play policy warning describes. The check
+// comes from the Play Policy Insights lint registry bundled with Android Studio;
+// its real issue id is "VpnServicePolicy" (not "VpnServicePolicyCompliance").
+@SuppressLint("VpnServicePolicy")
 class TunVpnService : VpnService() {
 
     private var tun: ParcelFileDescriptor? = null
@@ -90,12 +96,9 @@ class TunVpnService : VpnService() {
         }
         runCatching { tun?.close() }
         tun = null
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
+        // stopForeground(STOP_FOREGROUND_REMOVE) is API 24+; minSdk is 24, so the
+        // legacy boolean overload is never needed.
+        stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 

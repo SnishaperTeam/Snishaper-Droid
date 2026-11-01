@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 
 /**
  * Process-wide singleton around the gomobile AAR (`com.snishaper.core.mobile.App`).
@@ -36,14 +35,13 @@ object SnishaperEngine {
     @Volatile
     private var app: App? = null
 
-    private val _ready = MutableStateFlow(false)
+    private val _ready = MutableStateFlow(value = false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
     private val _status = MutableStateFlow(EngineStatus())
     val status: StateFlow<EngineStatus> = _status.asStateFlow()
 
     private val _buildInfo = MutableStateFlow(BuildInfo())
-    val buildInfo: StateFlow<BuildInfo> = _buildInfo.asStateFlow()
 
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -68,15 +66,10 @@ object SnishaperEngine {
     )
     val routes: SharedFlow<RouteEvent> = _routes.asSharedFlow()
 
-    private val logRing = ArrayDeque<String>()
-    private val logLock = Any()
-
     /** Strong reference: the Go side only holds a proxy of this interface. */
     private val listener = object : Listener {
         override fun onLog(line: String) {
-            appendLog(line)
             Log.i(LOG_TAG, line)
-            _logs.tryEmit(line)
         }
 
         override fun onRouteEvent(domain: String, mode: String) {
@@ -109,10 +102,10 @@ object SnishaperEngine {
                 instance.setListener(listener)
                 instance.start()
                 app = instance
-                _buildInfo.value = BuildInfo.fromJson(instance.getBuildInfoJSON())
-                _status.value = EngineStatus.fromJson(instance.getStatusJSON())
-                _tunStatus.value = TunStatus.fromJson(instance.getTUNStatusJSON())
-                _settings.value = AppSettings.fromJson(instance.getSettingsJSON())
+                _buildInfo.value = BuildInfo.fromJson(instance.buildInfoJSON)
+                _status.value = EngineStatus.fromJson(instance.let(App::getStatusJSON))
+                _tunStatus.value = TunStatus.fromJson(instance.let(App::getTUNStatusJSON))
+                _settings.value = AppSettings.fromJson(instance.let(App::getSettingsJSON))
                 _ready.value = true
                 Log.i(
                     LOG_TAG,
@@ -146,69 +139,15 @@ object SnishaperEngine {
 
     suspend fun refreshStatus() = io {
         val instance = requireApp()
-        _status.value = EngineStatus.fromJson(instance.getStatusJSON())
-        _tunStatus.value = TunStatus.fromJson(instance.getTUNStatusJSON())
+        _status.value = EngineStatus.fromJson(instance.let(App::getStatusJSON))
+        _tunStatus.value = TunStatus.fromJson(instance.let(App::getTUNStatusJSON))
     }
 
     private fun refreshTunStatusAsync() {
         scope.launch { runCatching { refreshStatus() } }
     }
 
-    suspend fun getStats(): Stats = io { Stats.fromJson(requireApp().getStatsJSON()) }
 
-    fun recentLogs(maxLines: Int = 500): String =
-        runCatching { requireApp().getRecentLogs(maxLines) }.getOrDefault("")
-
-    suspend fun clearLogs() = io {
-        requireApp().clearLogs()
-        synchronized(logLock) { logRing.clear() }
-    }
-
-    fun cachedLogs(): List<String> = synchronized(logLock) { logRing.toList() }
-
-    private fun appendLog(line: String) {
-        synchronized(logLock) {
-            logRing.addLast(line)
-            while (logRing.size > 5000) logRing.removeFirst()
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Proxy control
-    // ------------------------------------------------------------------
-
-    suspend fun startProxy() = io {
-        Log.i(LOG_TAG, "proxy: starting")
-        requireApp().startProxy()
-        refreshStatus()
-        Log.i(LOG_TAG, "proxy: started on ${_status.value.listenAddr}")
-    }
-
-    suspend fun stopProxy() = io {
-        Log.i(LOG_TAG, "proxy: stopping")
-        requireApp().stopProxy()
-        refreshStatus()
-        Log.i(LOG_TAG, "proxy: stopped")
-    }
-
-    suspend fun setListenPort(port: Int) = io {
-        requireApp().setListenPort(port)
-        refreshStatus()
-        loadSettings()
-    }
-
-    suspend fun setProxyMode(mode: String) = io {
-        requireApp().setProxyMode(mode)
-        refreshStatus()
-    }
-
-    suspend fun checkPortAvailable(port: Int): Boolean = io { requireApp().checkPortAvailable(port) }
-
-    suspend fun refreshIpv6(): Boolean = io {
-        val value = requireApp().refreshIPv6Check()
-        _status.update { it.copy(ipv6Available = value) }
-        value
-    }
 
     // ------------------------------------------------------------------
     // TUN (VpnService)
@@ -224,182 +163,13 @@ object SnishaperEngine {
         refreshStatus()
     }
 
-    suspend fun getTunStatus(): TunStatus = io {
-        TunStatus.fromJson(requireApp().getTUNStatusJSON()).also { _tunStatus.value = it }
-    }
-
-    suspend fun updateTunConfig(configJson: String) = io {
-        requireApp().updateTUNConfigJSON(configJson)
-        refreshStatus()
-    }
-
     // ------------------------------------------------------------------
     // Settings
     // ------------------------------------------------------------------
 
     suspend fun loadSettings() = io {
-        _settings.value = AppSettings.fromJson(requireApp().getSettingsJSON())
+        _settings.value = AppSettings.fromJson(requireApp().let(App::getSettingsJSON))
     }
-
-    /**
-     * Patches the persisted settings JSON and sends the complete structure back.
-     * (The Go side applies every section it receives, so partial JSON would reset
-     * unrelated sections such as `tun` / `fragment` / `cloudflare_config`.)
-     */
-    suspend fun patchSettings(patch: (JSONObject) -> Unit) = io {
-        val instance = requireApp()
-        val current = parseObject(instance.getSettingsJSON())
-        patch(current)
-        instance.updateSettingsJSON(current.toString())
-        _settings.value = AppSettings.fromJson(instance.getSettingsJSON())
-        refreshStatus()
-    }
-
-    // ------------------------------------------------------------------
-    // Rules / upstreams / DNS / ECH / NAT64 / fragment / Cloudflare
-    // ------------------------------------------------------------------
-
-    suspend fun siteGroups(): List<SiteGroup> = io { parseSiteGroups(requireApp().getSiteGroupsJSON()) }
-
-    suspend fun addSiteGroup(group: SiteGroup): String = io {
-        requireApp().addSiteGroupJSON(group.toJson().toString())
-    }
-
-    suspend fun updateSiteGroup(group: SiteGroup) = io {
-        requireApp().updateSiteGroupJSON(group.toJson().toString())
-    }
-
-    suspend fun deleteSiteGroup(id: String) = io { requireApp().deleteSiteGroup(id) }
-
-    suspend fun upstreams(): List<Upstream> = io { parseUpstreams(requireApp().getUpstreamsJSON()) }
-
-    suspend fun addUpstream(upstream: Upstream): String = io {
-        requireApp().addUpstreamJSON(upstream.toJson().toString())
-    }
-
-    suspend fun updateUpstream(upstream: Upstream) = io {
-        requireApp().updateUpstreamJSON(upstream.toJson().toString())
-    }
-
-    suspend fun deleteUpstream(id: String) = io { requireApp().deleteUpstream(id) }
-
-    suspend fun dnsNodes(): List<DnsNode> = io { parseDnsNodes(requireApp().getDNSNodesJSON()) }
-
-    suspend fun addDnsNode(node: DnsNode): String = io {
-        requireApp().addDNSNodeJSON(node.toJson().toString())
-    }
-
-    suspend fun updateDnsNode(node: DnsNode) = io {
-        requireApp().updateDNSNodeJSON(node.toJson().toString())
-    }
-
-    suspend fun deleteDnsNode(id: String) = io { requireApp().deleteDNSNode(id) }
-
-    suspend fun setDnsNodePriority(id: String, index: Int) = io {
-        requireApp().setDNSNodePriority(id, index)
-    }
-
-    suspend fun testDnsNode(id: String): DnsTestResult = io {
-        DnsTestResult.fromJson(requireApp().testDNSNode(id))
-    }
-
-    suspend fun echProfiles(): List<ECHProfile> = io { parseEchProfiles(requireApp().getECHProfilesJSON()) }
-
-    suspend fun upsertEchProfile(profile: ECHProfile) = io {
-        requireApp().upsertECHProfileJSON(profile.toJson().toString())
-    }
-
-    suspend fun deleteEchProfile(id: String) = io { requireApp().deleteECHProfile(id) }
-
-    suspend fun fetchEchConfig(domain: String, dohUrl: String): String = io {
-        // Returns {"config":"<base64>","length":N}
-        requireApp().fetchECHConfigJSON(domain, dohUrl)
-    }
-
-    suspend fun nat64Profiles(): List<Nat64Profile> = io {
-        parseNat64Profiles(requireApp().getNAT64ProfilesJSON())
-    }
-
-    suspend fun addNat64Profile(profile: Nat64Profile): String = io {
-        requireApp().addNAT64ProfileJSON(profile.toJson().toString())
-    }
-
-    suspend fun updateNat64Profile(profile: Nat64Profile) = io {
-        requireApp().updateNAT64ProfileJSON(profile.toJson().toString())
-    }
-
-    suspend fun deleteNat64Profile(id: String) = io { requireApp().deleteNAT64Profile(id) }
-
-    suspend fun testNat64(prefix: String): Nat64TestResult = io {
-        Nat64TestResult.fromJson(requireApp().testNAT64Profile(prefix))
-    }
-
-    suspend fun fragmentConfig(): FragmentConfig = io {
-        FragmentConfig.fromJson(parseObject(requireApp().getFragmentConfigJSON()))
-    }
-
-    suspend fun updateFragmentConfig(config: FragmentConfig) = io {
-        requireApp().setFragmentConfigJSON(config.toJson().toString())
-        loadSettings()
-    }
-
-    suspend fun resetFragmentConfig() = io {
-        requireApp().resetFragmentConfig()
-        loadSettings()
-    }
-
-    suspend fun cloudflareConfig(): CloudflareConfig = io {
-        CloudflareConfig.fromJson(parseObject(requireApp().getCloudflareConfigJSON()))
-    }
-
-    suspend fun updateCloudflareConfig(config: CloudflareConfig) = io {
-        requireApp().updateCloudflareConfigJSON(config.toJson().toString())
-        loadSettings()
-    }
-
-    suspend fun cloudflareIpStats(): List<CfIpStat> = io {
-        parseCfIpStats(requireApp().getCloudflareIPStatsJSON())
-    }
-
-    suspend fun forceFetchCloudflareIps(): String = io { requireApp().forceFetchCloudflareIPs() }
-
-    suspend fun triggerCloudflareHealthCheck() = io { requireApp().triggerCFHealthCheck() }
-
-    suspend fun removeInvalidCloudflareIps(): Int = io { requireApp().removeInvalidCFIPs() }
-
-    // ------------------------------------------------------------------
-    // Auto routing (Android: always OFF, read-only GFWList status)
-    // ------------------------------------------------------------------
-
-    suspend fun autoRoutingStatus(): GfwListStatus = io {
-        GfwListStatus.fromJson(requireApp().getAutoRoutingStatusJSON())
-    }
-
-    // ------------------------------------------------------------------
-    // Import / export
-    // ------------------------------------------------------------------
-
-    suspend fun exportConfig(): String = io { requireApp().exportConfigJSON() }
-
-    suspend fun importConfig(content: String): ImportSummary = io {
-        ImportSummary.fromJson(requireApp().importConfigWithSummaryJSON(content))
-    }
-
-    // ------------------------------------------------------------------
-    // Evolution (tests run CA-free; only TLS-fragment/direct rules applicable)
-    // ------------------------------------------------------------------
-
-    suspend fun startEvolutionTest(domains: List<String>, enableIpv6: Boolean) = io {
-        requireApp().startEvolutionTest(jsonArrayOfStrings(domains).toString(), enableIpv6)
-    }
-
-    suspend fun stopEvolutionTest() = io { requireApp().stopEvolutionTest() }
-
-    suspend fun evolutionStatus(): EvolutionTask? = io {
-        EvolutionTask.fromJson(requireApp().getEvolutionStatusJSON()).also { _evolution.value = it }
-    }
-
-    suspend fun applyEvolutionRule(ruleId: String) = io { requireApp().applyEvolutionRule(ruleId) }
 }
 
 /** A routing decision reported by the Go engine. */

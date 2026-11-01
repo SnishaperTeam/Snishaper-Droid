@@ -11,9 +11,6 @@ import org.json.JSONObject
 internal fun JSONObject.str(key: String, fallback: String = ""): String =
     if (isNull(key)) fallback else optString(key, fallback)
 
-internal fun JSONObject.strOrNull(key: String): String? =
-    if (isNull(key)) null else optString(key, "").ifEmpty { null }
-
 internal fun JSONObject.bool(key: String, fallback: Boolean = false): Boolean =
     if (isNull(key)) fallback else optBoolean(key, fallback)
 
@@ -39,27 +36,19 @@ internal fun JSONObject.objList(key: String): List<JSONObject> {
     return (0 until array.length()).mapNotNull { index -> array.optJSONObject(index) }
 }
 
-internal fun JSONArray.toStringList(): List<String> =
-    (0 until length()).mapNotNull { index -> optString(index, "").takeIf { it.isNotEmpty() } }
-
 internal fun JSONArray.toObjectList(): List<JSONObject> =
     (0 until length()).mapNotNull { index -> optJSONObject(index) }
+
+internal fun parseObject(json: String): JSONObject =
+    runCatching { JSONObject(json) }.getOrDefault(JSONObject())
 
 internal fun parseObjectArray(json: String): List<JSONObject> {
     if (json.isBlank()) return emptyList()
     return runCatching { JSONArray(json).toObjectList() }.getOrDefault(emptyList())
 }
 
-internal fun parseObject(json: String): JSONObject =
-    runCatching { JSONObject(json) }.getOrDefault(JSONObject())
-
 internal fun jsonArrayOfStrings(values: List<String>): JSONArray {
     val array = JSONArray()
     values.forEach { array.put(it) }
     return array
-}
-
-internal fun JSONObject.putStringList(key: String, values: List<String>): JSONObject {
-    put(key, jsonArrayOfStrings(values))
-    return this
 }

@@ -1,6 +1,5 @@
 package com.snishaper.android.core
 
-import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -27,12 +26,12 @@ data class EngineStatus(
             return EngineStatus(
                 proxyRunning = o.bool("proxyRunning"),
                 tunRunning = o.bool("tunRunning"),
-                tunSupported = o.bool("tunSupported", true),
+                tunSupported = o.bool(key = "tunSupported", fallback = true),
                 tunMessage = o.str("tunMessage"),
                 listenAddr = o.str("listenAddr", "127.0.0.1:8080"),
                 listenPort = o.int("listenPort", 8080),
                 proxyMode = o.str("proxyMode"),
-                ipv6Available = o.bool("ipv6Available", true),
+                ipv6Available = o.bool(key = "ipv6Available", fallback = true),
                 lastError = o.str("lastError"),
             )
         }
@@ -108,7 +107,7 @@ data class SiteGroup(
             upstream = o.str("upstream"),
             upstreams = o.strList("upstreams"),
             website = o.str("website"),
-            enabled = o.bool("enabled", true),
+            enabled = o.bool(key = "enabled", fallback = true),
             dnsMode = o.str("dns_mode"),
             useCfPool = o.bool("use_cf_pool"),
             nat64Enabled = o.bool("nat64_enabled"),
@@ -146,7 +145,7 @@ data class Upstream(
     companion object {
         fun fromJson(o: JSONObject) = Upstream(
             id = o.str("id"), name = o.str("name"), type = o.str("type", "cf_preferred"),
-            addresses = o.strList("addresses"), enabled = o.bool("enabled", true),
+            addresses = o.strList("addresses"), enabled = o.bool(key = "enabled", fallback = true),
             address = o.str("address"),
         )
     }
@@ -210,7 +209,7 @@ data class DnsNode(
             sni = o.str("sni"), ips = o.strList("ips"),
             echEnabled = o.bool("ech_enabled"), echProfileId = o.str("ech_profile_id"),
             echAutoUpdate = o.bool("ech_auto_update"), quic = o.bool("quic"),
-            enabled = o.bool("enabled", true),
+            enabled = o.bool(key = "enabled", fallback = true),
             certVerify = CertVerifyConfig.fromJson(o.obj("cert_verify")),
         )
     }
@@ -407,7 +406,7 @@ data class AppSettings(
                 language = o.str("language", "zh"),
                 theme = o.str("theme", "dark"),
                 appearanceMode = o.str("appearance_mode", "system"),
-                autoUpdateRules = o.bool("auto_update_rules", true),
+                autoUpdateRules = o.bool(key = "auto_update_rules", fallback = true),
                 tun = o.obj("tun")?.let { FragmentConfig.fromJson(it) },
                 fragment = o.obj("fragment")?.let { FragmentConfig.fromJson(it) } ?: FragmentConfig(),
                 cloudflare = o.obj("cloudflare_config")?.let { CloudflareConfig.fromJson(it) }
@@ -468,14 +467,12 @@ data class EvolutionTask(
     /** The engine's original payload, forwarded verbatim to the WebView. */
     val rawJson: String = "",
 ) {
-    val running: Boolean get() = status == "running" || status == "pending"
-    val appliedCount: Int get() = tempRules.count { it.isApplied }
-    val successCount: Int get() = results.count { it.reachable }
-    val failureCount: Int get() = results.count { !it.reachable }
+    val running: Boolean get() = (status == "running") || (status == "pending")
+
 
     companion object {
         fun fromJson(json: String): EvolutionTask? {
-            if (json.isBlank() || json == "{}") return null
+            if (json.isBlank() || (json == "{}")) return null
             val o = parseObject(json)
             if (o.length() == 0) return null
             val results = o.objList("results").map { r ->
@@ -517,7 +514,7 @@ data class EvolutionTask(
                     nat64Enabled = g.bool("nat64_enabled"),
                     nat64ProfileId = g.str("nat64_profile_id"),
                 )
-            }.ifEmpty { results.mapNotNull { it.generatedRule } }
+            }.ifEmpty { results.mapNotNull(EvolutionResult::generatedRule) }
             return EvolutionTask(
                 id = o.str("id"),
                 domains = o.strList("domains"),

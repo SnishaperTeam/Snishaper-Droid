@@ -70,8 +70,8 @@ internal class EngineBridge(private val webView: WebView) {
 
         // Calls that carry no engine work: settle them so the JS promise does
         // not leak, exactly like a successful no-op on the desktop side.
-        if (objectId != OBJECT_CALL || methodId != METHOD_CALL_BINDING) {
-            if (objectId != OBJECT_CANCEL_CALL && objectId != OBJECT_EVENTS) {
+        if ((objectId != OBJECT_CALL) || (methodId != METHOD_CALL_BINDING)) {
+            if ((objectId != OBJECT_CANCEL_CALL) && (objectId != OBJECT_EVENTS)) {
                 Log.w(TAG, "bridge: unsupported runtime object=$objectId method=$methodId")
             }
             reply(callId, value = null)
@@ -79,14 +79,10 @@ internal class EngineBridge(private val webView: WebView) {
         }
 
         // The runtime version in the bundle sends the call descriptor as the
-        // `args` object directly; older builds wrapped it as `args[0]`.
+        // `args` node directly; older builds wrapped it as `args[0]`.
         // Accept both shapes.
         val argsNode = request.opt("args")
-        val descriptor = when (argsNode) {
-            is JSONArray -> argsNode.optJSONObject(0)
-            is JSONObject -> argsNode
-            else -> null
-        }
+        val descriptor = (argsNode as? JSONObject) ?: (argsNode as? JSONArray)?.optJSONObject(0)
         if (descriptor == null) {
             reply(callId, error = "bridge payload has no call descriptor")
             return
@@ -142,17 +138,20 @@ internal class EngineBridge(private val webView: WebView) {
      * counterpart returns a plain string (e.g. `ExportConfig`, `FetchECHConfig`,
      * `GetRecentLogs`) keep returning a string.
      */
+    // `getIPv6Available()` has no synthesized Kotlin property (gomobile naming),
+    // so the property-access inspection is a false positive here.
+    @Suppress("UsePropertyAccessSyntax")
     private fun dispatch(name: String, a: Args): Any? = withApp { app ->
         when (name) {
             // ---- proxy lifecycle -------------------------------------
             "StartProxy" -> { app.startProxy(); null }
             "StopProxy" -> { app.stopProxy(); null }
-            "IsProxyRunning" -> app.isProxyRunning()
-            "GetListenPort" -> JSONObject(app.getStatusJSON()).optInt("listenPort", 0)
+            "IsProxyRunning" -> app.isProxyRunning
+            "GetListenPort" -> JSONObject(app.statusJSON).optInt("listenPort", 0)
             "SetListenPort" -> { app.setListenPort(a.int(0)); null }
-            "GetProxyMode" -> app.getProxyMode()
-            "SetProxyMode" -> { app.setProxyMode(a.string(0)); null }
-            "GetStats" -> parse(app.getStatsJSON())
+            "GetProxyMode" -> app.proxyMode
+            "SetProxyMode" -> { app.proxyMode = a.string(0); null }
+            "GetStats" -> parse(app.statsJSON)
 
             // ---- status / logs ---------------------------------------
             "GetIPv6Available" -> app.getIPv6Available()
@@ -198,7 +197,7 @@ internal class EngineBridge(private val webView: WebView) {
 
             // ---- fragment / TUN / Cloudflare -------------------------
             "GetFragmentConfig" -> parse(app.getFragmentConfigJSON())
-            "SetFragmentConfig" -> { app.setFragmentConfigJSON(a.obj(0).toString()); null }
+            "SetFragmentConfig" -> { app.fragmentConfigJSON = a.obj(0).toString(); null }
             "ResetFragmentConfig" -> { app.resetFragmentConfig(); null }
 
             "GetTUNConfig" -> parse(app.getTUNConfigJSON())
@@ -220,7 +219,7 @@ internal class EngineBridge(private val webView: WebView) {
                     )
                     "started"
                 } else {
-                    val activity = context as? MainWebViewActivity
+                    val activity = (context as? MainWebViewActivity)
                         ?: throw BridgeException("VPN consent requires the main activity")
                     activity.requestVpnConsent(consent)
                     "consent"
