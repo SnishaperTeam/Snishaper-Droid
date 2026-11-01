@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Download, FolderOpen, RefreshCcw, Monitor, Anchor,
   Cpu, Globe, BellRing, Activity, Bolt, Delete,
-  AlertCircle, Sun, Moon, Wifi, FileText, Settings as SettingsIcon
+  AlertCircle, ShieldAlert, Sun, Moon, Wifi, FileText, Settings as SettingsIcon
 } from '../lib/icons';
 import {
   GetListenPort, SetListenPort, GetCloseToTray, SetCloseToTray,
@@ -11,6 +11,7 @@ import {
   GetAutoEnableSysProxyOnAutoStart, SetAutoEnableSysProxyOnAutoStart,
   GetAutoUpdateRules, SetAutoUpdateRules,
   GetTUNConfig, UpdateTUNConfig, GetTUNStatus,
+  RegenerateCert, GetCAInstallStatus, GetInstalledCerts, UninstallCert, GetCACertPEM,
   ExportConfig, ImportConfigWithSummary,
   GetCloudflareConfig, UpdateCloudflareConfig, GetCloudflareIPStats,
   ForceFetchCloudflareIPs, TriggerCFHealthCheck, RemoveInvalidCFIPs,
@@ -123,6 +124,9 @@ const Settings: React.FC<SettingsProps> = ({ cache, onCacheUpdate, currentThemeI
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const tunConfig = cache.tunConfig;
   const tunStatus = cache.tunStatus;
+  const caStatus = cache.caStatus;
+  const installedCerts = cache.installedCerts || [];
+  const [isCertBusy, setIsCertBusy] = useState(false);
   const [ipStats, setIpStats] = useState<any[]>(cache.ipStats || []);
   const [isIpv6Checking, setIsIpv6Checking] = useState(false);
   const ipv6Available = cache.ipv6Available !== false;
@@ -219,14 +223,16 @@ const Settings: React.FC<SettingsProps> = ({ cache, onCacheUpdate, currentThemeI
 
   const reloadCriticalData = useCallback(async () => {
     try {
-      const [tunCfg, tunState, cf, stats] = await Promise.all([
-        GetTUNConfig(), GetTUNStatus(), GetCloudflareConfig(), GetCloudflareIPStats()
+      const [tunCfg, tunState, cf, ca, certs, stats] = await Promise.all([
+        GetTUNConfig(), GetTUNStatus(), GetCloudflareConfig(),
+        GetCAInstallStatus(), GetInstalledCerts(), GetCloudflareIPStats()
       ]);
       if (cf) setCfConfig(cf);
       if (stats) setIpStats(stats);
       onCacheUpdate({
         tunConfig: tunCfg || cache.tunConfig, tunStatus: tunState || cache.tunStatus,
-        cfConfig: cf || cache.cfConfig
+        cfConfig: cf || cache.cfConfig, caStatus: ca || cache.caStatus,
+        installedCerts: certs || cache.installedCerts
       });
     } catch {
       /* ignore */
@@ -270,6 +276,46 @@ const Settings: React.FC<SettingsProps> = ({ cache, onCacheUpdate, currentThemeI
       toast.success(t('settings.notifications.updated'));
     } catch (err: any) {
       setUpdateChannel(prev);
+      toast.error(t('common.failed'), String(err));
+    }
+  };
+
+  const handleRegenerateCert = async () => {
+    setIsCertBusy(true);
+    try {
+      await RegenerateCert();
+      await reloadCriticalData();
+      toast.success(t('settings.ca_management.reset_success'));
+    } catch (err: any) { toast.error(t('common.failed'), String(err));
+    } finally { setIsCertBusy(false); }
+  };
+
+  const handleUninstallCert = async (token: string) => {
+    if (!token) return;
+    setIsCertBusy(true);
+    try {
+      await UninstallCert(token);
+      await reloadCriticalData();
+      toast.success(t('common.success'));
+    } catch (err: any) { toast.error(t('common.failed'), String(err));
+    } finally { setIsCertBusy(false); }
+  };
+
+  // Android has no desktop file-manager bridge (OpenCertDir is not dispatched),
+  // so export downloads the CA PEM via the WebView blob path, same as log export.
+  const handleExportCert = async () => {
+    try {
+      const pem = await GetCACertPEM();
+      const blob = new Blob([pem], { type: 'application/x-x509-ca-cert' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'snishaper-ca.crt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
       toast.error(t('common.failed'), String(err));
     }
   };
@@ -471,8 +517,74 @@ const Settings: React.FC<SettingsProps> = ({ cache, onCacheUpdate, currentThemeI
 
       <Box sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', width: '100%', pb: 6 }}>
       <Grid container spacing={3}>
-        {/* The CA / security column was removed on Android (CA-free build), so
-            the remaining general / TUN / startup sections now use the full row. */}
+        <Grid size={12}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <SectionHeader icon={<ShieldAlert size={18} />} label={t('settings.tabs.security')} />
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <SettingRowInline title={t('settings.ca_management.reset')} desc={t('settings.ca_management.reset_hint')} icon={<RefreshCcw size={18} />}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={isCertBusy ? <CircularProgress size={20} /> : null}
+                  onClick={handleRegenerateCert}
+                >
+                  {isCertBusy ? t('common.loading') : t('common.apply')}
+                </Button>
+              </SettingRowInline>
+              <SettingRowInline title={t('settings.ca_management.export')} desc={caStatus?.CertPath || undefined} icon={<FolderOpen size={18} />}>
+                <Button
+                  size="small"
+                  variant="text"
+                  startIcon={<Download size={16} />}
+                  onClick={handleExportCert}
+                >
+                  {t('common.export')}
+                </Button>
+              </SettingRowInline>
+            </Box>
+
+            <StackedRow data-tut="cert-section" title={t('settings.ca_management.title')} desc={caStatus?.Installed ? t('dashboard.cert_installed') : t('dashboard.cert_not_installed')} icon={<ShieldAlert size={18} />}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: caStatus?.Installed ? 'success.main' : 'text.secondary' }}>
+                  {caStatus?.Installed ? t('settings.certs_count', { count: installedCerts.length }) : t('common.off')}
+                </Typography>
+                {installedCerts.length === 0 ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, color: 'text.secondary', opacity: 0.5 }}>
+                    <ShieldAlert size={32} />
+                    <Typography variant="caption" sx={{ mt: 0.5 }}>{t('proxies.no_ech')}</Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ mt: 1, maxHeight: 320, overflowY: 'auto' }}>
+                    {installedCerts.map((cert: any) => (
+                      <Box key={cert.token} sx={{ p: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'background.default', mb: 0.5 }}>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', wordBreak: 'break-all' }}>
+                            {cert.subject}
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block', wordBreak: 'break-all' }}>
+                            {[cert.storeLocation, cert.storeName, cert.thumbprint].filter(Boolean).join(' / ')}
+                          </Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          disabled={isCertBusy}
+                          onClick={() => handleUninstallCert(cert.token)}
+                        >
+                          <Delete size={16} />
+                          {t('common.delete')}
+                        </Button>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            </StackedRow>
+          </Box>
+        </Grid>
+
         <Grid size={12}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <SectionHeader icon={<Anchor size={18} />} label={t('settings.tabs.general')} />

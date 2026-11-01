@@ -12,12 +12,23 @@ var ipv6ProbeTargets = []string{
 	"[2001:4860:4860::8888]:443",
 }
 
-// refreshIPv6 probes IPv6 connectivity and caches the result.
+// refreshIPv6 probes IPv6 connectivity and caches the result. Concurrent
+// callers (Start warm-up + bridge GetIPv6Available) share one in-flight
+// probe instead of racing duplicates.
 func (a *App) refreshIPv6() bool {
+	a.mu.Lock()
+	if a.ipv6Probing {
+		a.mu.Unlock()
+		return a.ipv6Available
+	}
+	a.ipv6Probing = true
+	a.mu.Unlock()
+
 	available := probeIPv6()
 	a.mu.Lock()
 	a.ipv6Available = available
 	a.ipv6CheckedAt = time.Now()
+	a.ipv6Probing = false
 	a.mu.Unlock()
 	a.dispatchLog("[ipv6] egress available: " + boolText(available))
 	a.pushState()

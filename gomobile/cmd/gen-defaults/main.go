@@ -1,6 +1,6 @@
 // Command gen-defaults converts the desktop default rules/config into the
-// CA-free Android defaults and writes them to gomobile/defaults and the app
-// assets directory.
+// CA-free Android defaults and writes them to the app assets directory (the
+// single committed copy, consumed by AssetSeeder and sanitize_test.go).
 //
 // It is a one-off migration tool committed for reproducibility. It never
 // modifies the desktop repository and never touches snishaper-core.
@@ -10,7 +10,6 @@
 //	go run ./cmd/gen-defaults \
 //	  -desktop-rules  D:/c++/Contributions/SniShaper-main/rules/config.json \
 //	  -desktop-settings D:/c++/Contributions/SniShaper-main/config/settings.json \
-//	  -out ./defaults \
 //	  -assets ../app/src/main/assets/defaults
 package main
 
@@ -29,7 +28,6 @@ import (
 func main() {
 	desktopRulesPath := flag.String("desktop-rules", "", "path to SniShaper-main/rules/config.json")
 	desktopSettingsPath := flag.String("desktop-settings", "", "path to SniShaper-main/config/settings.json (optional)")
-	outDir := flag.String("out", "defaults", "gomobile/defaults output directory")
 	assetsDir := flag.String("assets", "../app/src/main/assets/defaults", "Android assets output directory")
 	flag.Parse()
 
@@ -88,16 +86,15 @@ func main() {
 	}
 	settingsJSON = append(settingsJSON, '\n')
 
-	for _, dir := range []string{*outDir, *assetsDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			fatal("mkdir %s: %v", dir, err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "rules.json"), rulesJSON, 0o644); err != nil {
-			fatal("write rules.json to %s: %v", dir, err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "settings.json"), settingsJSON, 0o644); err != nil {
-			fatal("write settings.json to %s: %v", dir, err)
-		}
+	dir := *assetsDir
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		fatal("mkdir %s: %v", dir, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "rules.json"), rulesJSON, 0o644); err != nil {
+		fatal("write rules.json to %s: %v", dir, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), settingsJSON, 0o644); err != nil {
+		fatal("write settings.json to %s: %v", dir, err)
 	}
 
 	mitm, quic, other := 0, 0, 0
@@ -117,7 +114,7 @@ func main() {
 	fmt.Printf("rewritten rules         : %d (%d mode rewrites + CA field clears)\n", rewritten, cleared)
 	fmt.Printf("resulting modes         : tls-rf/transparent/direct=%d, unexpected=%d\n", other, mitm+quic)
 	fmt.Printf("upstreams/dns/ech/nat64 : %d / %d / %d / %d\n", len(remote.Upstreams), len(remote.DNSNodes), len(remote.ECHProfiles), len(remote.NAT64Profiles))
-	fmt.Printf("written                 : %s and %s\n", *outDir, *assetsDir)
+	fmt.Printf("written                 : %s\n", *assetsDir)
 }
 
 // sanitizeRulesConfig rewrites the rules snapshot in place and reports the

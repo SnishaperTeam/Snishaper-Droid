@@ -2,9 +2,9 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-[![Android](https://img.shields.io/badge/Android-7.0%2B%20(API%2024)-3DDC84?style=flat&logo=android&logoColor=white)](https://developer.android.com) [![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose%20M3-7F52FF?style=flat&logo=kotlin&logoColor=white)](https://kotlinlang.org) [![Core](https://img.shields.io/badge/核心库-snishaper--core-00ADD8?style=flat&logo=go)](https://github.com/SnishaperTeam/snishaper-core) [![License](https://img.shields.io/badge/许可证-AGPL--3.0-blue?style=flat&logo=open-source-initiative)](LICENSE) [![GitHub Release](https://img.shields.io/github/v/release/SnishaperTeam/Snishaper-Droid?style=flat&logo=github&label=版本)](https://github.com/SnishaperTeam/Snishaper-Droid/releases) [![GitHub Downloads](https://img.shields.io/github/downloads/SnishaperTeam/Snishaper-Droid/total?style=flat&logo=github&label=下载量)](https://github.com/SnishaperTeam/Snishaper-Droid/releases) [![GitHub last commit](https://img.shields.io/github/last-commit/SnishaperTeam/Snishaper-Droid?style=flat&logo=git&label=最后提交)](https://github.com/SnishaperTeam/Snishaper-Droid/commits/main) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/SnishaperTeam/Snishaper-Droid/android.yml?style=flat&logo=githubactions&label=持续集成)](https://github.com/SnishaperTeam/Snishaper-Droid/actions)
+[![Android](https://img.shields.io/badge/Android-7.0%2B%20(API%2024)-3DDC84?style=flat&logo=android&logoColor=white)](https://developer.android.com) [![Kotlin](https://img.shields.io/badge/Kotlin-WebView%20宿主-7F52FF?style=flat&logo=kotlin&logoColor=white)](https://kotlinlang.org) [![Core](https://img.shields.io/badge/核心库-snishaper--core-00ADD8?style=flat&logo=go)](https://github.com/SnishaperTeam/snishaper-core) [![License](https://img.shields.io/badge/许可证-AGPL--3.0-blue?style=flat&logo=open-source-initiative)](LICENSE) [![GitHub Release](https://img.shields.io/github/v/release/SnishaperTeam/Snishaper-Droid?style=flat&logo=github&label=版本)](https://github.com/SnishaperTeam/Snishaper-Droid/releases) [![GitHub Downloads](https://img.shields.io/github/downloads/SnishaperTeam/Snishaper-Droid/total?style=flat&logo=github&label=下载量)](https://github.com/SnishaperTeam/Snishaper-Droid/releases) [![GitHub last commit](https://img.shields.io/github/last-commit/SnishaperTeam/Snishaper-Droid?style=flat&logo=git&label=最后提交)](https://github.com/SnishaperTeam/Snishaper-Droid/commits/main) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/SnishaperTeam/Snishaper-Droid/android.yml?style=flat&logo=githubactions&label=持续集成)](https://github.com/SnishaperTeam/Snishaper-Droid/actions)
 
-**Snishaper-Droid** 是 [SniShaper](https://github.com/SnishaperTeam/SniShaper) 的 **Android 原生客户端**：前端使用 **Kotlin + Jetpack Compose + Material 3**，代理引擎来自 **[snishaper-core](https://github.com/SnishaperTeam/snishaper-core)**，通过 **gomobile bind** 编译为 AAR 在进程内运行，无需 root。通过 **TLS 分片**、**加密 DNS / ECH（DoH 层）**、**NAT64** 与 **VpnService 全局代理**，在复杂网络环境下提供稳定而灵活的网络访问体验。
+**Snishaper-Droid** 是 [SniShaper](https://github.com/SnishaperTeam/SniShaper) 的 **Android 客户端**：直接复用桌面版的 **React 19 + MUI** 前端（打进 APK 由 WebView 渲染，Kotlin 只做宿主与桥接），代理引擎来自 **[snishaper-core](https://github.com/SnishaperTeam/snishaper-core)**，通过 **gomobile bind** 编译为 AAR 在进程内运行，无需 root。通过 **TLS 分片**、**加密 DNS / ECH（DoH 层）**、**NAT64** 与 **VpnService 全局代理**，在复杂网络环境下提供稳定而灵活的网络访问体验。
 
 > **⚠️ 本仓库已完整移除 CA 功能**：不生成 / 保存 / 安装 / 导出任何证书，不操作 Android 系统信任库或 KeyStore；`certmanager` 不会编译进 AAR，gomobile 导出面中 **0 个 CA API**，UI 中不存在任何 CA 入口。详见 **[CA 功能移除](#ca-功能移除)**。
 
@@ -38,7 +38,7 @@
 | 平台 | Android 7.0+ | Windows / Linux / macOS | Windows / Linux / macOS |
 | 核心能力 | TLS 分片、DoH/ECH、NAT64、VpnService TUN | ECH 注入、TLS 分片、QUIC、会话迁移、TUN | Clash 订阅、全协议节点、WireGuard、TUN 网关 |
 
-三者的代理引擎均来自独立库 **[snishaper-core](https://github.com/SnishaperTeam/snishaper-core)**：代理服务、规则引擎、DoH 解析、TLS 分片与 TUN 数据面由该库提供，本仓库只保留 Android 应用层（Compose UI、VpnService、配置数据与 CA-free 裁剪层）。
+三者的代理引擎均来自独立库 **[snishaper-core](https://github.com/SnishaperTeam/snishaper-core)**：代理服务、规则引擎、DoH 解析、TLS 分片与 TUN 数据面由该库提供，本仓库只保留 Android 应用层（WebView 宿主、VpnService、配置数据与 CA-free 裁剪层）。
 
 ---
 
@@ -60,7 +60,7 @@
 - **进化模式**：直连 / TCPing / TLS 分片等探测（域前置 / ECH / QUIC 测试仅展示，Android 不可应用其规则）。
 - **VpnService TUN（Beta）**：Kotlin `VpnService` 建隧道 → Go `sing-tun` `FileDescriptor` + core `singtun.Handler` + gvisor 栈，无需 root。
 - **配置导入 / 导出**：兼容桌面格式，导入时自动 CA-free 清洗并汇报改写条数。
-- **Material 3 UI**：9 个页面与桌面版导航一致（CA 项删除）；顶部 **☰** 控制侧边栏，可见性持久化；6 套配色 × 明暗 / light·dark·system；简体中文 / English / Русский。
+- **React + MUI UI**：与桌面版同一前端 bundle（9 个页面，CA 项删除）；顶部 **☰** 控制侧边栏，可见性持久化；6 套配色 × 明暗 / light·dark·system；简体中文 / English / Русский。
 - **前台服务**：代理运行期间常驻通知，满足 Android 后台限制。
 
 ---
@@ -93,14 +93,14 @@
 
 ## 构建与开发
 
-本项目前端基于 **Kotlin + Jetpack Compose + Material 3**，通过 `gomobile/mobile`（独立 Go module）将 **snishaper-core** 绑定为 AAR 在进程内运行。当前支持 Android 7.0+，构建目标为 **API 24（minSdk）/ 36（compileSdk · targetSdk）**。
+本项目 UI 直接复用桌面版 **React 19 + MUI** 前端（Kotlin WebView 宿主 + Wails 桥接），通过 `gomobile/mobile`（独立 Go module）将 **snishaper-core** 绑定为 AAR 在进程内运行。当前支持 Android 7.0+，构建目标为 **API 24（minSdk）/ 36（compileSdk · targetSdk）**。
 
 CA-free 由四道保障共同实现：**编译期**（不 import `certmanager`）、**实例化期**（永不注入 `CertGenerator`）、**配置清洗**（启动加载 / 导入 / 规则 CRUD / AutoRouter 强制关闭 / Evolution Apply 白名单）、**CI 守卫**（AAR 导出面与依赖闭包校验）。
 
 CI/CD 与桌面端发布节奏对齐：
 
 - `.github/workflows/android.yml`：push / PR → `gomobile bind`（CA-free AAR）→ 契约校验 → `lint test assembleRelease` → 上传 APK/AAB artifact。
-- `.github/workflows/release.yml`：`v*` tag → GitHub Release（APK + AAB + 版本号 + changelog，发布说明标注 **“已移除 CA 功能”**）。
+- `.github/workflows/release.yml`：手动 `workflow_dispatch`（确认版本号 + 渠道）→ bot 提交版本号 → 构建并发布 GitHub Release（APK + AAB + 版本号 + changelog，发布说明标注 **“已移除 CA 功能”**）。
 
 完整的构建指南详见 **[build.md](docs/build.md)**。
 
@@ -114,7 +114,7 @@ CI/CD 与桌面端发布节奏对齐：
 - [lumine](https://github.com/moi-si/lumine)
 - [snishaper-core](https://github.com/SnishaperTeam/snishaper-core)
 - [golang.org/x/mobile](https://pkg.go.dev/golang.org/x/mobile)（gomobile）
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) / [Material 3](https://m3.material.io/)
+- [React](https://react.dev/) / [MUI](https://mui.com/)（桌面版前端，Android 直接复用）
 
 ## 项目活跃度与贡献者
 

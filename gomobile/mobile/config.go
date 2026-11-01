@@ -18,8 +18,8 @@ import (
 	"github.com/SnishaperTeam/snishaper-core/proxy"
 )
 
-// GetSettingsJSON returns proxy.SettingsConfig as JSON. Android forces the
-// CA-free invariants: auto routing mode "", migration disabled.
+// GetSettingsJSON returns proxy.SettingsConfig as JSON. Smart routing stays
+// forced off on Android; migration settings pass through from the config.
 func (a *App) GetSettingsJSON() (out string) {
 	defer recoverString(&out)
 	a.opMu.Lock()
@@ -37,15 +37,15 @@ func (a *App) GetSettingsJSON() (out string) {
 		Theme:            rm.GetTheme(),
 		AppearanceMode:   rm.GetAppearanceMode(),
 		CloudflareConfig: rm.GetCloudflareConfig(),
-		MigrationEnabled: boolPtr(false),
-		MigrationServer:  "",
+		MigrationEnabled: boolPtr(rm.GetMigrationEnabled()),
+		MigrationServer:  rm.GetMigrationServer(),
 	}
 	return marshalJSON(settings)
 }
 
 // UpdateSettingsJSON applies user settings. Desktop-only fields (tray,
-// auto-start, update channel, system proxy) are ignored; CA-free invariants are
-// forced no matter what the caller sends.
+// auto-start, update channel, system proxy) are ignored; smart routing stays
+// off; everything else — including the migration service — passes through.
 func (a *App) UpdateSettingsJSON(jsonConfig string) (err error) {
 	defer recoverError(&err)
 	a.opMu.Lock()
@@ -59,8 +59,6 @@ func (a *App) UpdateSettingsJSON(jsonConfig string) (err error) {
 		return fmt.Errorf("parse settings: %w", err)
 	}
 	settings.AutoRouting = proxy.AutoRoutingConfig{Mode: ""}
-	settings.MigrationEnabled = boolPtr(false)
-	settings.MigrationServer = ""
 	settings.UpdateChannel = ""
 	settings.DownloadSource = ""
 	settings.CustomDownloadSource = ""
@@ -75,7 +73,10 @@ func (a *App) UpdateSettingsJSON(jsonConfig string) (err error) {
 	if err := rm.UpdateAutoRoutingConfig(settings.AutoRouting); err != nil {
 		return err
 	}
-	if err := rm.SetMigrationEnabled(false); err != nil {
+	if err := rm.SetMigrationEnabled(settings.MigrationEnabled != nil && *settings.MigrationEnabled); err != nil {
+		return err
+	}
+	if err := rm.SetMigrationServer(strings.TrimSpace(settings.MigrationServer)); err != nil {
 		return err
 	}
 	if err := rm.UpdateTUNConfig(settings.TUN); err != nil {
@@ -133,10 +134,10 @@ func (a *App) GetSiteGroupsJSON() (out string) {
 	if err != nil {
 		return "[]"
 	}
-	return marshalJSON(sanitizeSiteGroupsForOutput(rm.GetSiteGroups()))
+	return marshalJSON(nonNil(rm.GetSiteGroups()))
 }
 
-// GetSiteGroupJSON returns one site group as a sanitized JSON object.
+// GetSiteGroupJSON returns one site group as a JSON object.
 func (a *App) GetSiteGroupJSON(id string) (out string) {
 	defer recoverString(&out)
 	a.opMu.Lock()
@@ -148,7 +149,7 @@ func (a *App) GetSiteGroupJSON(id string) (out string) {
 	target := strings.TrimSpace(id)
 	for _, group := range rm.GetSiteGroups() {
 		if group.ID == target {
-			return marshalJSON(sanitizeSiteGroupForOutput(group))
+			return marshalJSON(group)
 		}
 	}
 	return "{}"
@@ -822,7 +823,7 @@ func (a *App) RemoveInvalidCFIPs() (removed int32, err error) {
 	return int32(srv.RemoveInvalidCFIPs()), nil
 }
 
-// ExportConfigJSON exports rules/settings as a CA-free proxy.RulesConfig JSON.
+// ExportConfigJSON exports rules/settings as a proxy.RulesConfig JSON.
 func (a *App) ExportConfigJSON() (out string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -836,7 +837,7 @@ func (a *App) ExportConfigJSON() (out string, err error) {
 		return "", err
 	}
 	rulesConfig := proxy.RulesConfig{
-		SiteGroups:    sanitizeSiteGroupsForOutput(rm.GetSiteGroups()),
+		SiteGroups:    nonNil(rm.GetSiteGroups()),
 		Upstreams:     nonNil(rm.GetUpstreams()),
 		DNSNodes:      nonNil(rm.GetDNSNodes()),
 		ECHProfiles:   nonNil(rm.GetECHProfiles()),
@@ -846,7 +847,7 @@ func (a *App) ExportConfigJSON() (out string, err error) {
 }
 
 // ImportConfigWithSummaryJSON imports a desktop rules/config.json (RulesConfig
-// format) or a desktop exported config. Everything is sanitized first; the
+// format) or a desktop exported config. Content passes through unmodified; the
 // returned JSON is ImportSummary plus {"rewritten","format"}.
 func (a *App) ImportConfigWithSummaryJSON(content string) (out string, err error) {
 	defer func() {
@@ -875,21 +876,15 @@ func (a *App) ImportConfigWithSummaryJSON(content string) (out string, err error
 		if err := json.Unmarshal([]byte(trimmed), &remote); err != nil {
 			return "", fmt.Errorf("parse rules config: %w", err)
 		}
-		rewritten := sanitizeRulesConfig(&remote)
 		summary, mergeErr := rm.MergeRemoteRules(remote, contentHash(trimmed))
 		if mergeErr != nil {
 			return "", mergeErr
-		}
-		extra, enforceErr := a.enforceRulesLocked(rm)
-		if enforceErr != nil {
-			return "", enforceErr
 		}
 		result := importSummaryPayload{
 			Total:       len(remote.SiteGroups) + len(remote.Upstreams) + len(remote.DNSNodes) + len(remote.ECHProfiles) + len(remote.NAT64Profiles),
 			Added:       summary.AddedGroups + summary.AddedUpstreams + summary.AddedDNSNodes + summary.AddedECHProfiles + summary.AddedNAT64,
 			Overwritten: summary.UpdatedGroups + summary.UpdatedUpstreams,
 			Skipped:     summary.KeptGroups + summary.KeptUpstreams,
-			Rewritten:   rewritten + extra,
 			Format:      "rules",
 		}
 		a.afterConfigChangedLocked()
@@ -898,24 +893,15 @@ func (a *App) ImportConfigWithSummaryJSON(content string) (out string, err error
 
 	// 2) Desktop export format ({"mitm":..., "transparent":...} or a single
 	//    config file with "rules").
-	sanitized, rewritten, sanitizeErr := sanitizeImportExportJSON(trimmed)
-	if sanitizeErr != nil {
-		return "", fmt.Errorf("sanitize config: %w", sanitizeErr)
-	}
-	summary, importErr := rm.ImportConfigWithSummary(sanitized)
+	summary, importErr := rm.ImportConfigWithSummary(trimmed)
 	if importErr != nil {
 		return "", importErr
-	}
-	extra, enforceErr := a.enforceRulesLocked(rm)
-	if enforceErr != nil {
-		return "", enforceErr
 	}
 	result := importSummaryPayload{
 		Total:       summary.Total,
 		Added:       summary.Added,
 		Overwritten: summary.Overwritten,
 		Skipped:     summary.Skipped,
-		Rewritten:   rewritten + extra,
 		Format:      "export",
 	}
 	a.afterConfigChangedLocked()

@@ -8,7 +8,8 @@ import {
   Plus,
   Delete,
   Lock,
-  Settings
+  Settings,
+  AlertCircle
 } from '../lib/icons';
 import { Box, Typography, TextField, Switch, IconButton, Button } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -40,6 +41,38 @@ const fragFromBackend = (raw: any) => {
   };
 };
 
+const normalizeCertVerify = (value: any) => {
+  const next = {
+    mode: '',
+    names: [] as string[],
+    suffixes: [] as string[],
+    spki_sha256: [] as string[],
+    allow_unknown_authority: false
+  };
+  if (!value || typeof value !== 'object') {
+    return next;
+  }
+
+  next.mode = String(value.mode || '').trim();
+  next.names = Array.isArray(value.names)
+    ? value.names
+    : Array.isArray(value.allowed_names)
+      ? value.allowed_names
+      : [];
+  next.suffixes = Array.isArray(value.suffixes)
+    ? value.suffixes
+    : Array.isArray(value.allowed_suffixes)
+      ? value.allowed_suffixes
+      : [];
+  next.spki_sha256 = Array.isArray(value.spki_sha256)
+    ? value.spki_sha256
+    : Array.isArray(value.allowed_spki)
+      ? value.allowed_spki
+      : [];
+  next.allow_unknown_authority = Boolean(value.allow_unknown_authority);
+  return next;
+};
+
 const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel }) => {
   const { t } = useTranslation();
   const { cache } = useContext(SettingsCtx);
@@ -62,6 +95,15 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel })
     { id: 'ipv6_only', label: t('rules.dns_options.ipv6_only'), desc: t('rules.dns_options.ipv6_only') }
   ];
 
+  const CERT_VERIFY_MODES = [
+    { id: 'strict_real', label: t('dns.modes.strict'), desc: t('dns.mode_descs.strict') },
+    { id: 'allow_names', label: t('dns.modes.names'), desc: t('dns.mode_descs.names') },
+    { id: 'allow_suffixes', label: t('dns.modes.suffixes'), desc: t('dns.mode_descs.suffixes') },
+    { id: 'allow_spki', label: t('dns.modes.spki'), desc: t('dns.mode_descs.spki') },
+    { id: 'chain_only', label: t('dns.modes.chain'), desc: t('dns.mode_descs.chain') },
+    { id: '', label: t('rules.cert_policy.ignore'), desc: t('rules.cert_policy.ignore_hint') }
+  ];
+
   const [formData, setFormData] = useState<any>({
     id: '',
     name: '',
@@ -77,7 +119,14 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel })
     ech_domain: '',
     use_cf_pool: false,
     nat64_enabled: false,
-    nat64_profile_id: ''
+    nat64_profile_id: '',
+    cert_verify: {
+      mode: '',
+      names: [] as string[],
+      suffixes: [] as string[],
+      spki_sha256: [] as string[],
+      allow_unknown_authority: false
+    }
   });
   const [domainInput, setDomainInput] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -97,6 +146,7 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel })
       if (String(data.upstream || '').trim().toUpperCase() === 'DIRECT') {
         data.upstream = '';
       }
+      data.cert_verify = normalizeCertVerify(data.cert_verify);
       data.nat64_enabled = Boolean(data.nat64_enabled);
       data.nat64_profile_id = String(data.nat64_profile_id || '');
       setFormData(data);
@@ -125,6 +175,7 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel })
     e.preventDefault();
     const payload = {
       ...formData,
+      cert_verify: normalizeCertVerify(formData.cert_verify),
       upstream: String(formData.upstream || '').trim().toUpperCase() === 'DIRECT'
         ? ''
         : String(formData.upstream || '').trim(),
@@ -148,8 +199,17 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel })
     setFormData({ ...formData, [field]: !formData[field] });
 
   const currentMode = String(formData.mode || '').trim().toLowerCase();
+  const certVerifyMode = String(formData.cert_verify?.mode || '').trim();
+  const setCertVerify = (patch: Record<string, any>) => setFormData({
+    ...formData,
+    cert_verify: {
+      ...formData.cert_verify,
+      ...patch
+    }
+  });
   const showSniFake = ['mitm', 'quic', 'migration'].includes(currentMode);
   const showEchConfig = ['mitm', 'quic'].includes(currentMode);
+  const showCertVerify = ['mitm', 'quic', 'migration'].includes(currentMode);
   const showNat64Config = ['mitm', 'quic', 'tls-rf', 'transparent', 'migration'].includes(currentMode);
   const showCfPool = ['mitm', 'transparent', 'tls-rf', 'quic'].includes(currentMode);
   const showFragment = currentMode === 'tls-rf';
@@ -545,6 +605,82 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel })
                 </Box>
                 <Switch size="small" checked={frag.oob} />
               </Box>
+            </Box>
+          )}
+
+          {showCertVerify && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 2, border: 1, borderColor: 'warning.main', bgcolor: 'background.paper', borderRadius: 2, position: 'relative' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', mb: 1 }}>
+                <AlertCircle size={16} />
+                <Typography variant="caption" sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('dns.cert_policy')}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="caption" sx={{ fontSize: 9, fontWeight: 'bold', color: 'text.secondary' }}>{t('dns.verify_mode')}</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3, 1fr)' }, gap: 1 }}>
+                  {CERT_VERIFY_MODES.map((cm) => {
+                    const active = certVerifyMode === cm.id;
+                    return (
+                      <Box key={cm.id || 'default'} onClick={() => setCertVerify({ mode: cm.id })} sx={cardSx(active, { warn: true, inactiveBg: 'action.hover' })}>
+                        <Typography variant="caption" sx={{ fontWeight: 900, letterSpacing: '0.05em' }}>{cm.label}</Typography>
+                        <Typography variant="caption" sx={{ fontSize: 10, lineHeight: 1.6, opacity: 0.8 }}>{cm.desc}</Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+
+              <Box onClick={() => setCertVerify({ allow_unknown_authority: !formData.cert_verify.allow_unknown_authority })} sx={cardSx(Boolean(formData.cert_verify.allow_unknown_authority), { warn: true, row: true, inactiveBg: 'action.hover' })}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', py: 0.25 }}>{t('dns.allow_unknown')}</Typography>
+                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>{t('rules.form.cert_verify_warn')}</Typography>
+                </Box>
+                <Switch size="small" color="warning" checked={Boolean(formData.cert_verify.allow_unknown_authority)} />
+              </Box>
+
+              {certVerifyMode === 'allow_names' && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontSize: 9, fontWeight: 'bold', color: 'text.secondary' }}>{t('dns.allow_names')}</Typography>
+                  <TextField
+                    multiline
+                    rows={4}
+                    size="small"
+                    value={joinListInput(formData.cert_verify.names)}
+                    onChange={(e) => setCertVerify({ names: splitListInput(e.target.value) })}
+                    placeholder={t('rules.form.placeholder_domains')}
+                    sx={{ ...inputSx, '& textarea': { fontSize: '0.75rem', lineHeight: 1.6, resize: 'none' } }}
+                  />
+                </Box>
+              )}
+
+              {certVerifyMode === 'allow_suffixes' && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontSize: 9, fontWeight: 'bold', color: 'text.secondary' }}>{t('dns.allow_suffixes')}</Typography>
+                  <TextField
+                    multiline
+                    rows={4}
+                    size="small"
+                    value={joinListInput(formData.cert_verify.suffixes)}
+                    onChange={(e) => setCertVerify({ suffixes: splitListInput(e.target.value) })}
+                    placeholder={t('rules.form.placeholder_suffixes')}
+                    sx={{ ...inputSx, '& textarea': { fontSize: '0.75rem', lineHeight: 1.6, resize: 'none' } }}
+                  />
+                </Box>
+              )}
+
+              {certVerifyMode === 'allow_spki' && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontSize: 9, fontWeight: 'bold', color: 'text.secondary' }}>{t('rules.form.allow_spki_list')}</Typography>
+                  <TextField
+                    multiline
+                    rows={4}
+                    size="small"
+                    value={joinListInput(formData.cert_verify.spki_sha256)}
+                    onChange={(e) => setCertVerify({ spki_sha256: splitListInput(e.target.value) })}
+                    placeholder={t('rules.form.placeholder_spki')}
+                    sx={{ ...inputSx, '& textarea': { fontSize: '0.75rem', lineHeight: 1.6, resize: 'none' } }}
+                  />
+                </Box>
+              )}
             </Box>
           )}
         </Box>

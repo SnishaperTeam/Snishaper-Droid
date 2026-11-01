@@ -1,6 +1,6 @@
 # Build Guide (Snishaper-Droid)
 
-> Covers the gomobile AAR, Android APK/AAB builds, the MuMu smoke test, CA-free verification and troubleshooting.
+> Covers the gomobile AAR, Android APK/AAB builds, the MuMu smoke test, AAR verification and troubleshooting.
 > Platform scope and feature boundaries: [Platform_EN.md](Platform_EN.md).
 
 ## 1. Artifact matrix
@@ -45,8 +45,8 @@ $env:GOSUMDB          = "off"
 pwsh -File scripts/build-aar.ps1
 ```
 
-The script validates Go/gomobile/NDK/JDK, asserts that `certmanager` is absent from the
-`gomobile/mobile` dependency closure, runs `gomobile bind` (arm64-v8a + armeabi-v7a + x86_64,
+The script validates Go/gomobile/NDK/JDK, asserts that `certmanager` **is present** in the
+`gomobile/mobile` dependency closure (CA-support check), runs `gomobile bind` (arm64-v8a + armeabi-v7a + x86_64,
 `-androidapi 24`, `-tags with_gvisor`, `-trimpath -ldflags "-s -w"`) and prints size/sha256.
 
 Equivalent single command:
@@ -90,27 +90,28 @@ pwsh -File scripts/mumu-status.ps1
 pwsh -File scripts/smoke-test.ps1
 ```
 
-Manual checklist: no crash / no `FATAL EXCEPTION`; engine start & stop works; the ☰ drawer toggles;
-no CA/certificate entry anywhere; only TLS-RF / Transparent rule modes.
+Manual checklist: no crash / no `FATAL EXCEPTION`; engine start & stop works; the CA status card
+renders on the Dashboard; the ☰ drawer toggles; rule editing offers all modes
+(mitm / tls-rf / quic / transparent / migration).
 
-## 7. CA-free verification
+## 7. AAR verification
 
 ```powershell
-pwsh -File scripts/verify-aar.ps1
+python3 scripts/verify_aar.py
 cd gomobile
-go list -deps ./mobile | Select-String certmanager   # must be empty
+go list -deps ./mobile | Select-String certmanager   # must have output (CA support in the graph)
 ```
 
 The script checks: AAR presence / `minSdkVersion=24` / three ABIs / 16 KB page alignment for
 arm64 & x86_64 / `classes.jar` contains only `App`, `Listener` and gobind runtime classes /
-no `cert`/`ca`-named classes / no certificate files.
+no certificate files embedded.
 
 ## 8. CI/CD
 
 | Workflow | Trigger | Contents |
 |---|---|---|
-| `.github/workflows/android.yml` | push / PR / manual | JDK + SDK + NDK + Go + gcc → gomobile AAR → verify-aar → `lint test assembleRelease` → APK/AAB artifacts |
-| `.github/workflows/release.yml` | `v*` tags / manual | Build and publish a GitHub Release (APK + AAB + version + changelog, stating “CA functionality removed”) |
+| `.github/workflows/android.yml` | push / PR / manual | JDK + SDK + NDK + Go + gcc → gomobile AAR → verify_aar → `lint test assembleRelease` → APK/AAB artifacts |
+| `.github/workflows/release.yml` | manual dispatch (confirm version + channel; bot commits the bump and tags) | Build and publish a GitHub Release (APK + AAB + version + changelog, stating “CA functionality removed”) |
 
 ## 9. Troubleshooting
 

@@ -10,7 +10,7 @@ import {
   GetListenPort, GetCloseToTray, GetAutoStart,
   GetShowMainWindowOnAutoStart, GetAutoEnableProxyOnAutoStart, GetAutoEnableSysProxyOnAutoStart, GetAutoUpdateRules,
   GetTUNConfig, GetTUNStatus, GetCloudflareConfig,
-  GetCloudflareIPStats,
+  GetCAInstallStatus, GetInstalledCerts, GetCloudflareIPStats,
   GetLanguage, GetTheme, SetTheme, GetIPv6Available, GetTutorialDone, GetAppearanceMode, EventsOn
 } from './api/bindings';
 import { I18nProvider, useTranslation } from './i18n/I18nContext';
@@ -46,6 +46,8 @@ interface SettingsCache {
   autoUpdateRules: boolean;
   tunConfig: any;
   tunStatus: any;
+  caStatus: any;
+  installedCerts: any[];
   cfConfig: any;
   ipStats: any[];
   language: string;
@@ -60,6 +62,8 @@ const defaultCache: SettingsCache = {
   autoUpdateRules: true,
   tunConfig: { enabled: false, mtu: 9000, dns_hijack: true, auto_route: true, strict_route: true },
   tunStatus: { supported: true, running: false, enabled: false, message: '' },
+  caStatus: { Installed: false, CertPath: '', Platform: 'android' },
+  installedCerts: [],
   cfConfig: { api_key: '', auto_update: true },
   ipStats: [],
   language: '',
@@ -135,13 +139,16 @@ const App: React.FC = () => {
     };
     const slowLoad = async () => {
       try {
-        const [tunConfig, tunStatus, ipStats] = await Promise.all([
-          GetTUNConfig(), GetTUNStatus(), GetCloudflareIPStats()
+        const [tunConfig, tunStatus, caStatus, installedCerts, ipStats] = await Promise.all([
+          GetTUNConfig(), GetTUNStatus(),
+          GetCAInstallStatus(), GetInstalledCerts(), GetCloudflareIPStats()
         ]);
         setSettingsCache(prev => ({
           ...prev,
           tunConfig: tunConfig || prev.tunConfig,
           tunStatus: tunStatus || prev.tunStatus,
+          caStatus: caStatus || prev.caStatus,
+          installedCerts: installedCerts || [],
           ipStats: ipStats || [],
         }));
       } catch { /* ignore */ }

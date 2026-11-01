@@ -61,8 +61,11 @@ class TunVpnService : VpnService() {
         runCatching {
             val builder = Builder()
                 .setMtu(MTU)
-                .addAddress("172.19.0.1", 30)
-                .addDnsServer("172.19.0.2")
+                // Must match the Go constants in gomobile/mobile/tun_android.go:
+                // the gvisor stack answers DNS on 198.18.0.2 (fake-IP range
+                // 198.18.0.0/16), so the interface address is its gateway.
+                .addAddress("198.18.0.1", 30)
+                .addDnsServer("198.18.0.2")
                 .addRoute("0.0.0.0", 0)
                 .addRoute("::", 0)
                 .setSession(SESSION)
@@ -72,7 +75,11 @@ class TunVpnService : VpnService() {
                 .addDisallowedApplication(packageName)
             val pfd = builder.establish() ?: error("establish() returned null (consent revoked?)")
             tun = pfd
-            val fd = pfd.fd
+            // fd ownership moves to the Go tun device (it closes the fd on
+            // stop). Detach so Kotlin's cleanup can never double-close it —
+            // a closed-then-reused fd number would kill an unrelated socket.
+            // shortcut: if Go startTun fails before taking ownership, the fd leaks until process death.
+            val fd = pfd.detachFd()
             serviceScope.launch {
                 runCatching { SnishaperEngine.startTun(fd, MTU) }
                     .onFailure { error ->
@@ -94,7 +101,8 @@ class TunVpnService : VpnService() {
                 runCatching { SnishaperEngine.stopTun() }
             }
         }
-        runCatching { tun?.close() }
+        // fd was detached in establishAndStart (Go owns and closes it), so
+        // there is nothing to close here; `tun` is only the running flag.
         tun = null
         // stopForeground(STOP_FOREGROUND_REMOVE) is API 24+; minSdk is 24, so the
         // legacy boolean overload is never needed.

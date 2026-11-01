@@ -1,6 +1,6 @@
 # 构建指南（Snishaper-Droid）
 
-> 本文覆盖 gomobile AAR、Android APK/AAB 构建、MuMu 冒烟测试、CA-free 校验与常见问题。
+> 本文覆盖 gomobile AAR、Android APK/AAB 构建、MuMu 冒烟测试、AAR 校验与常见问题。
 > 平台支持与功能边界见 [Platform.md](Platform.md)。
 
 ## 1. 产物矩阵
@@ -53,7 +53,7 @@ pwsh -File scripts/build-aar.ps1
 脚本行为：
 
 1. 校验 `go` / `gomobile` / NDK / JDK；
-2. 检查 `gomobile/mobile` 的依赖闭包中**不含 `certmanager`**（CA-free 守卫）；
+2. 检查 `gomobile/mobile` 的依赖闭包中**包含 `certmanager`**（CA 支持校验：缺失则说明 CA 功能被误删）；
 3. 执行 `gomobile bind`（arm64-v8a + armeabi-v7a + x86_64，`-androidapi 24`、`-tags with_gvisor`、`-trimpath -ldflags "-s -w"`）；
 4. 输出体积 / sha256 摘要到控制台。
 
@@ -112,28 +112,27 @@ pwsh -File scripts/smoke-test.ps1
 人工检查项：
 
 - [ ] App 启动无崩溃 / 无 `FATAL EXCEPTION`
-- [ ] Dashboard 可启动 / 停止代理引擎
+- [ ] Dashboard 可启动 / 停止代理引擎，CA 状态卡正常显示
 - [ ] 顶部 ☰ 可开关侧边栏，9 项顺序与桌面一致
-- [ ] 全 App 无任何 CA / 证书入口
-- [ ] 规则编辑仅 TLS-RF / Transparent 模式
+- [ ] 规则编辑支持 mitm / tls-rf / quic / transparent / migration 全部模式
 
-## 7. CA-free 校验
+## 7. AAR 校验
 
 ```powershell
-pwsh -File scripts/verify-aar.ps1
+python3 scripts/verify_aar.py
 
 cd gomobile
-go list -deps ./mobile | Select-String certmanager   # 应无输出
+go list -deps ./mobile | Select-String certmanager   # 应有输出（CA 支持已在依赖图中）
 ```
 
-校验内容：AAR 存在 / `minSdkVersion=24` / 三个 ABI / arm64 与 x86_64 的 16 KB 页对齐 / `classes.jar` 仅含 `App`、`Listener` 与 gobind 运行时类 / 无 `cert` 或 `ca` 命名类 / 无证书文件。
+校验内容：AAR 存在 / `minSdkVersion=24` / 三个 ABI / arm64 与 x86_64 的 16 KB 页对齐 / `classes.jar` 仅含 `App`、`Listener` 与 gobind 运行时类 / 无证书文件内嵌。
 
 ## 8. CI/CD
 
 | Workflow | 触发 | 内容 |
 |---|---|---|
-| `.github/workflows/android.yml` | push / PR / 手动 | JDK + Android SDK + NDK + Go + gcc → gomobile AAR → verify-aar → `lint test assembleRelease` → APK/AAB artifacts |
-| `.github/workflows/release.yml` | `v*` tag / 手动 | 构建并创建 GitHub Release（APK + AAB + 版本号 + changelog，标注“已移除 CA 功能”） |
+| `.github/workflows/android.yml` | push / PR / 手动 | JDK + Android SDK + NDK + Go + gcc → gomobile AAR → verify_aar → `lint test assembleRelease` → APK/AAB artifacts |
+| `.github/workflows/release.yml` | 手动 dispatch（确认版本 + 渠道，bot 提交版本号并打 tag） | 构建并创建 GitHub Release（APK + AAB + 版本号 + changelog，标注“已移除 CA 功能”） |
 
 ## 9. 常见问题
 

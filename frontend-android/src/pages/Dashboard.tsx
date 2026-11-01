@@ -6,7 +6,9 @@ import {
   Cpu,
   Shield,
   Bolt,
-  ShieldAlert
+  ShieldAlert,
+  Download,
+  Lock
 } from '../lib/icons';
 import { alpha } from '@mui/material/styles';
 import {
@@ -23,6 +25,8 @@ import {
   StartTUN,
   StopProxy,
   StopTUN,
+  GetCAInstallStatus,
+  InstallCA,
   EventsOn
 } from '../api/bindings';
 import Modal from '../components/Modal';
@@ -60,21 +64,26 @@ const Dashboard: React.FC = () => {
     supported: true, running: false, enabled: false, message: t('common.loading')
   });
   const [isTUNBusy, setIsTUNBusy] = useState(false);
+  const [caStatus, setCaStatus] = useState<any>({ Installed: false, CertPath: '', Platform: 'android' });
+  const [showCertModal, setShowCertModal] = useState(false);
+  const [isInstallingCert, setIsInstallingCert] = useState(false);
   const [portOccupant, setPortOccupant] = useState<{ port: number; pid: number; name: string } | null>(null);
   const [showKillDialog, setShowKillDialog] = useState(false);
 
   const refresh = async () => {
     try {
-      const [running, m, p, tunCfg, tunState] = await Promise.all([
+      const [running, m, p, ca, tunCfg, tunState] = await Promise.all([
         IsProxyRunning(),
         GetProxyMode(),
         GetListenPort(),
+        GetCAInstallStatus(),
         GetTUNConfig(),
         GetTUNStatus()
       ]);
       setProxyRunning(running);
       setProxyMode(m.toUpperCase());
       setPort(p);
+      setCaStatus(ca || { Installed: false });
       const normalizedTunConfig = {
         mtu: Number(tunCfg?.mtu ?? tunCfg?.MTU ?? 9000),
         dns_hijack: Boolean(tunCfg?.dns_hijack ?? tunCfg?.DNSHijack ?? true),
@@ -89,6 +98,12 @@ const Dashboard: React.FC = () => {
       };
       setTunConfig(normalizedTunConfig);
       setTunStatus(normalizedTunStatus);
+      const statusPending = ca?.InstallHelp === '证书状态初始化中' || ca?.InstallHelp === '证书管理器未初始化';
+      if (ca?.Installed) setShowCertModal(false);
+      if (ca && !statusPending && !ca.Installed && !sessionStorage.getItem('ca_modal_shown')) {
+        setShowCertModal(true);
+        sessionStorage.setItem('ca_modal_shown', 'true');
+      }
     } catch (e) {
       console.error("Dashboard refresh error:", e);
     }
@@ -238,6 +253,18 @@ const Dashboard: React.FC = () => {
       refresh();
       operatingRef.current = false;
       setIsOperating(false);
+    }
+  };
+
+  const handleInstallCA = async () => {
+    setIsInstallingCert(true);
+    try {
+      await InstallCA();
+      const ca = await GetCAInstallStatus();
+      setCaStatus(ca || { Installed: false });
+      if (ca?.Installed) setShowCertModal(false);
+    } finally {
+      setIsInstallingCert(false);
     }
   };
 
@@ -392,7 +419,7 @@ const Dashboard: React.FC = () => {
 
       <Box sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', width: '100%', pb: 6 }}>
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Box className="ss-card-hover" sx={{ p: 3, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: '10%', boxShadow: 1, aspectRatio: '1 / 1' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
               <Box sx={{ color: 'primary.main' }}><Cpu size={20} /></Box>
@@ -429,7 +456,31 @@ const Dashboard: React.FC = () => {
           </Box>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Box className="ss-card-hover" sx={{ p: 3, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: '10%', boxShadow: 1, aspectRatio: '1 / 1' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <Box sx={{ color: 'primary.main' }}><Shield size={20} /></Box>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                {t('dashboard.cert_status')}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.25, borderRadius: 2, border: 1, bgcolor: caStatus.Installed ? 'success.main' : 'error.main', color: caStatus.Installed ? 'success.contrastText' : 'error.contrastText', borderColor: caStatus.Installed ? 'success.light' : 'error.light', minWidth: 0 }}>
+                {caStatus.Installed ? <Shield size={18} /> : <ShieldAlert size={18} />}
+                <Typography variant="caption" sx={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', py: 0.25, outline: '1px solid transparent' }}>
+                  {caStatus.Installed ? t('dashboard.cert_installed') : t('dashboard.cert_not_installed')}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', fontSize: '0.75rem', color: 'text.secondary', fontWeight: 'medium', px: 1, alignItems: 'center', minWidth: 0 }}>
+                <Typography noWrap sx={{ maxWidth: 140, opacity: 0.6, fontSize: '0.625rem', py: 0.25, outline: '1px solid transparent' }} title={caStatus.CertPath}>
+                  {caStatus.CertPath || t('dashboard.path_pending')}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 4 }}>
           <Box className="ss-card-hover" sx={{ p: 3, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: '10%', boxShadow: 1, aspectRatio: '1 / 1' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
               <Box sx={{ color: 'primary.main' }}><Shield size={20} /></Box>
@@ -454,6 +505,50 @@ const Dashboard: React.FC = () => {
         </Grid>
       </Grid>
       </Box>
+
+      <Modal isOpen={showCertModal} onClose={() => setShowCertModal(false)} title={t('dashboard.install_cert.title')} maxWidth="md">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, py: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ width: 56, height: 56, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Lock size={24} color="primary.contrastText" />
+            </Box>
+          </Box>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+              {t('dashboard.install_cert.subtitle')}
+            </Typography>
+          </Box>
+          <Box sx={{ bgcolor: 'background.default', border: 1, borderColor: 'divider', borderRadius: 2, p: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+              <Box sx={{ mt: 0.5, color: 'warning.main' }}>
+                <ShieldAlert size={20} />
+              </Box>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  {t('dashboard.install_cert.security_alert')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5, display: 'block' }}>
+                  {t('dashboard.install_cert.security_desc')}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
+            <Button
+              onClick={handleInstallCA}
+              loading={isInstallingCert}
+              variant="contained"
+              fullWidth
+              startIcon={!isInstallingCert && <Download size={16} />}
+            >
+              {isInstallingCert ? t('dashboard.install_cert.installing') : t('dashboard.install_cert.install_now')}
+            </Button>
+            <Button onClick={() => setShowCertModal(false)} variant="text" fullWidth>
+              {t('dashboard.install_cert.remind_later')}
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
 
       <Modal isOpen={showKillDialog} onClose={() => setShowKillDialog(false)} title={portOccupant && portOccupant.pid <= 0 ? t('dashboard.port_occupied.title_unavailable') : t('dashboard.port_occupied.title_occupied')} maxWidth="sm"
         footer={portOccupant && portOccupant.pid <= 0 ? (

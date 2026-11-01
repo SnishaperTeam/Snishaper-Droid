@@ -143,7 +143,7 @@ Write-Info ("    分辨率/密度   : " + $wmSize + " / " + $wmDensity)
 $isMuMu = ($serial -match '127\.0\.0\.1:') -or ($model -match 'MuMu')
 Write-Info ("    MuMu 识别     : " + $(if ($isMuMu) { '是（模拟器）' } else { '否/未知' }))
 if ($abi -match 'x86_64') {
-    Write-Info '    提示：MuMu 为 x86_64，AAR 必须包含 x86_64 ABI（scripts/verify-aar.ps1 会校验）。'
+    Write-Info '    提示：MuMu 为 x86_64，AAR 必须包含 x86_64 ABI（scripts/verify_aar.py 会校验）。'
 }
 if ($isMuMu) { Write-Ok 'MuMu 已就绪，可执行 scripts/smoke-test.ps1' }
 elseif ($devices.Count -gt 0) { Write-Ok '已有 adb 设备在线（非 MuMu 或无法识别型号），可继续 smoke test。' }

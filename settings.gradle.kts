@@ -14,7 +14,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // 华为云 Maven 镜像优先；AGP 9.4.1 / AndroidX / Compose / Kotlin 2.4.21
+        // 华为云 Maven 镜像优先；AGP 9.4.1 / AndroidX / Kotlin 2.4.21
         // 均已实测存在。官方源兜底，CI（海外 runner）也无需改动。
         maven("https://repo.huaweicloud.com/repository/maven/")
         google()

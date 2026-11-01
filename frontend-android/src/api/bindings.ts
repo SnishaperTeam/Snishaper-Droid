@@ -28,13 +28,12 @@ import { Call, Events, setTransport } from '@wailsio/runtime';
  * The `snishaper/app.App.` prefix stays as-is: it is the Wails binding path
  * and the Android host resolves the bare method name from it.
  *
- * CA removal (Android is CA-free by design)
- * ------------------------------------------
- * The following desktop exports were DELETED and have no Android counterpart:
- *   ExportCert, GetCACertPEM, GetCACertPath, GetCAInstallStatus,
- *   GetInstalledCerts, InstallCA, OpenCAFile, OpenCertDir,
- *   RegenerateCert, UninstallCert
- * Android never installs a root CA, so the whole certificate surface is gone.
+ * CA (certmanager)
+ * ---------------
+ * The certificate surface is live: `InstallCA` publishes the generated root
+ * into the Android system trust store via root su, and the status/list/PEM
+ * payloads keep the desktop shapes. `OpenCAFile` / `OpenCertDir` stay
+ * desktop-only (no file manager on Android) and are not exported.
  *
  * Unsupported / desktop-only API mapping
  * --------------------------------------
@@ -75,16 +74,14 @@ import { Call, Events, setTransport } from '@wailsio/runtime';
  *   SetUpdateChannel                      -> null
  *   GetDownloadSource / SetDownloadSource  -> null
  *   GetCustomDownloadSource / Set…         -> null
- *   GetMigrationEnabled / SetMigrationEnabled -> false / null
- *   GetMigrationServer / SetMigrationServer   -> '' / null
- *   TestMigration                         -> ''
  *   GetTutorialDone                       -> localStorage-backed boolean
  *   SetTutorialDone                       -> localStorage-backed no-op
  *   OpenURL                               -> window.open + optional host hook
  *
  * Everything else (proxy, rules, DNS, ECH, NAT64, evolution, Cloudflare,
- * settings, TUN config, logs, stats, IPv6, auto-routing, …) is passed straight
- * through to the Kotlin host using the desktop method name.
+ * migration service, CA management, settings, TUN config, logs, stats, IPv6,
+ * auto-routing, …) is passed straight through to the Kotlin host using the
+ * desktop method name.
  */
 
 /**
@@ -401,10 +398,22 @@ export const DeleteNAT64Profile = (id: string) => appCall('DeleteNAT64Profile', 
 export const TestNAT64Profile = (prefix: string) => appCall('TestNAT64Profile', prefix);
 
 // ---------------------------------------------------------------------------
-// Migration service (desktop only)
+// Migration service
 // ---------------------------------------------------------------------------
-export const GetMigrationEnabled = () => unsupported(false);
-export const SetMigrationEnabled = (enabled: boolean) => unsupported<any>(null);
-export const GetMigrationServer = () => unsupported<string>('');
-export const SetMigrationServer = (server: string) => unsupported<any>(null);
-export const TestMigration = (server: string) => unsupported<string>('');
+export const GetMigrationEnabled = () => appCall('GetMigrationEnabled');
+export const SetMigrationEnabled = (enabled: boolean) => appCall('SetMigrationEnabled', enabled);
+export const GetMigrationServer = () => appCall('GetMigrationServer');
+export const SetMigrationServer = (server: string) => appCall('SetMigrationServer', server);
+export const TestMigration = (server: string) => appCall('TestMigration', server);
+
+// ---------------------------------------------------------------------------
+// CA (certmanager)
+// ---------------------------------------------------------------------------
+export const InstallCA = () => appCall('InstallCA');
+export const RegenerateCert = () => appCall('RegenerateCert');
+export const UninstallCert = (thumbprint: string) => appCall('UninstallCert', thumbprint);
+export const GetCAInstallStatus = () => appCall('GetCAInstallStatus');
+export const GetInstalledCerts = () => appCall('GetInstalledCerts');
+export const ExportCert = () => appCall('ExportCert');
+export const GetCACertPEM = () => appCall('GetCACertPEM');
+export const GetCACertPath = () => appCall('GetCACertPath');

@@ -3,7 +3,7 @@ module github.com/SnishaperTeam/snishaper-droid/gomobile
 go 1.27.0
 
 require (
-	github.com/SnishaperTeam/snishaper-core v0.8.3
+	github.com/SnishaperTeam/snishaper-core v0.8.4
 	github.com/sagernet/sing v0.9.6
 	github.com/sagernet/sing-tun v0.9.6
 )

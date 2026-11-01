@@ -65,7 +65,7 @@ func TestAppLifecycleAndStatus(t *testing.T) {
 	if err := json.Unmarshal([]byte(app.GetBuildInfoJSON()), &buildInfo); err != nil {
 		t.Fatalf("parse build info: %v", err)
 	}
-	if buildInfo["coreVersion"] != "v0.4.0" {
+	if buildInfo["coreVersion"] != "v0.8.4" {
 		t.Fatalf("coreVersion = %v", buildInfo["coreVersion"])
 	}
 	if groups := app.GetSiteGroupsJSON(); groups != "[]" {
@@ -73,7 +73,7 @@ func TestAppLifecycleAndStatus(t *testing.T) {
 	}
 }
 
-func TestImportDesktopRulesBecomesCAFree(t *testing.T) {
+func TestImportDesktopRulesPassthrough(t *testing.T) {
 	app := newTestApp(t)
 	raw, err := os.ReadFile(filepath.Join("testdata", "desktop-rules.json"))
 	if err != nil {
@@ -93,27 +93,30 @@ func TestImportDesktopRulesBecomesCAFree(t *testing.T) {
 	if summary.Total < 222 || summary.Added < 222 {
 		t.Fatalf("import summary = %+v, want total/added >= 222", summary)
 	}
-	if summary.Rewritten == 0 {
-		t.Fatalf("import summary = %+v, want rewritten > 0", summary)
-	}
 
-	// Inspect the stored rules (not just the sanitized JSON output).
+	// Desktop rules import unmodified: modes and CA fields survive.
 	groups := app.rules.GetSiteGroups()
 	if len(groups) != 222 {
 		t.Fatalf("stored site groups = %d, want 222", len(groups))
 	}
-	caDependent := 0
+	counts := map[string]int{}
+	mitmWithCA := 0
 	for _, group := range groups {
-		if group.Mode != "tls-rf" && group.Mode != "transparent" && group.Mode != "direct" {
-			caDependent++
+		counts[group.Mode]++
+		switch group.Mode {
+		case "mitm", "tls-rf", "quic", "transparent", "migration", "direct":
+		default:
 			t.Errorf("stored rule %q has mode %q", group.Name, group.Mode)
 		}
-		if group.SniFake != "" || !group.CertVerify.IsZero() || group.ECHEnabled || group.ECHProfileID != "" || group.ECHDomain != "" {
-			t.Errorf("stored rule %q still carries CA fields", group.Name)
+		if group.Mode == "mitm" && (group.SniFake != "" || !group.CertVerify.IsZero() || group.ECHEnabled) {
+			mitmWithCA++
 		}
 	}
-	if caDependent != 0 {
-		t.Fatalf("%d stored rule(s) still require a local CA", caDependent)
+	if counts["mitm"] != 68 || counts["quic"] != 9 {
+		t.Fatalf("stored mode counts = %v, want mitm=68 quic=9", counts)
+	}
+	if mitmWithCA == 0 {
+		t.Fatal("no stored mitm rule kept its CA fields")
 	}
 }
 
@@ -130,20 +133,16 @@ func TestExportImportRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("export: %v", err)
 	}
-	if strings.Contains(exported, `"mode": "mitm"`) || strings.Contains(exported, `"mode": "quic"`) {
-		t.Fatal("export contains CA-dependent modes")
-	}
 	var exportedRules proxy.RulesConfig
 	if err := json.Unmarshal([]byte(exported), &exportedRules); err != nil {
 		t.Fatalf("parse export: %v", err)
 	}
+	counts := map[string]int{}
 	for _, group := range exportedRules.SiteGroups {
-		if group.Mode != "tls-rf" && group.Mode != "transparent" && group.Mode != "direct" {
-			t.Fatalf("exported rule %q has mode %q", group.Name, group.Mode)
-		}
-		if group.SniFake != "" || !group.CertVerify.IsZero() || group.ECHEnabled {
-			t.Fatalf("exported rule %q carries CA fields", group.Name)
-		}
+		counts[group.Mode]++
+	}
+	if counts["mitm"] != 68 || counts["quic"] != 9 || counts["tls-rf"] != 124 {
+		t.Fatalf("exported mode counts = %v, want mitm=68 quic=9 tls-rf=124", counts)
 	}
 
 	target := newTestApp(t)
@@ -160,20 +159,23 @@ func TestExportImportRoundTrip(t *testing.T) {
 	}
 }
 
-func TestSiteGroupCRUDAndCAModeRejection(t *testing.T) {
+func TestSiteGroupCRUDPreservesCAFields(t *testing.T) {
 	app := newTestApp(t)
 
-	if _, err := app.AddSiteGroupJSON(`{"name":"x","mode":"mitm","domains":["x.test"]}`); err == nil {
-		t.Fatal("adding a mitm rule must fail")
+	if _, err := app.AddSiteGroupJSON(`{"name":"x","mode":"mitm","domains":["x.test"]}`); err != nil {
+		t.Fatalf("adding a mitm rule: %v", err)
 	}
-	if _, err := app.AddSiteGroupJSON(`{"name":"x","mode":"quic","domains":["x.test"]}`); err == nil {
-		t.Fatal("adding a quic rule must fail")
+	if _, err := app.AddSiteGroupJSON(`{"name":"y","mode":"quic","domains":["y.test"]}`); err != nil {
+		t.Fatalf("adding a quic rule: %v", err)
 	}
-	if _, err := app.AddSiteGroupJSON(`{"name":"x","mode":"transparent","domains":["x.test"]}`); err != nil {
+	if _, err := app.AddSiteGroupJSON(`{"name":"z","mode":"transparent","domains":["z.test"]}`); err != nil {
 		t.Fatalf("adding a transparent rule: %v", err)
 	}
+	if _, err := app.AddSiteGroupJSON(`{"name":"bad","mode":"direct","domains":["bad.test"]}`); err == nil {
+		t.Fatal("adding a direct rule must fail")
+	}
 
-	id, err := app.AddSiteGroupJSON(`{"name":"console.test","mode":"tls-rf","domains":["console.test"],"sni_fake":"fake.example","cert_verify":{"mode":"strict_real"},"ech_enabled":true}`)
+	id, err := app.AddSiteGroupJSON(`{"name":"console.test","mode":"mitm","domains":["console.test"],"sni_fake":"fake.example","cert_verify":{"mode":"strict_real"},"ech_enabled":true}`)
 	if err != nil {
 		t.Fatalf("add site group: %v", err)
 	}
@@ -181,15 +183,16 @@ func TestSiteGroupCRUDAndCAModeRejection(t *testing.T) {
 		t.Fatal("add site group returned empty id")
 	}
 	stored := findStoredGroup(t, app, id)
-	if stored.Mode != "tls-rf" || stored.SniFake != "" || !stored.CertVerify.IsZero() || stored.ECHEnabled {
-		t.Fatalf("stored group not sanitized: %+v", stored)
+	if stored.Mode != "mitm" || stored.SniFake != "fake.example" || stored.CertVerify.IsZero() || !stored.ECHEnabled {
+		t.Fatalf("stored group lost CA fields: %+v", stored)
 	}
 
-	if err := app.UpdateSiteGroupJSON(`{"id":"` + id + `","name":"console.test","mode":"mitm","domains":["console.test"]}`); err == nil {
-		t.Fatal("updating to mitm must fail")
+	if err := app.UpdateSiteGroupJSON(`{"id":"` + id + `","name":"console.test","mode":"quic","domains":["console.test"],"sni_fake":"fake2.example"}`); err != nil {
+		t.Fatalf("update to quic: %v", err)
 	}
-	if err := app.UpdateSiteGroupJSON(`{"id":"` + id + `","name":"console.test","mode":"transparent","domains":["console.test"]}`); err != nil {
-		t.Fatalf("update to transparent: %v", err)
+	stored = findStoredGroup(t, app, id)
+	if stored.Mode != "quic" || stored.SniFake != "fake2.example" {
+		t.Fatalf("updated group not stored verbatim: %+v", stored)
 	}
 	if err := app.DeleteSiteGroup(id); err != nil {
 		t.Fatalf("delete: %v", err)
@@ -208,7 +211,7 @@ func TestAutoRoutingForcedOff(t *testing.T) {
 		t.Fatalf("disabling smart routing: %v", err)
 	}
 	// Even a settings payload that asks for smart routing must be neutralized.
-	if err := app.UpdateSettingsJSON(`{"listen_port":"8080","auto_routing":{"mode":"default"},"migration_enabled":true}`); err != nil {
+	if err := app.UpdateSettingsJSON(`{"listen_port":"8080","auto_routing":{"mode":"default"}}`); err != nil {
 		t.Fatalf("update settings: %v", err)
 	}
 	var settings proxy.SettingsConfig
@@ -218,8 +221,39 @@ func TestAutoRoutingForcedOff(t *testing.T) {
 	if strings.TrimSpace(string(settings.AutoRouting.Mode)) != "" {
 		t.Fatalf("auto routing mode = %q after update", settings.AutoRouting.Mode)
 	}
-	if settings.MigrationEnabled != nil && *settings.MigrationEnabled {
-		t.Fatal("migration enabled after update")
+}
+
+func TestMigrationSettingsPassthrough(t *testing.T) {
+	app := newTestApp(t)
+	payload := `{"listen_port":"8080","migration_enabled":true,"migration_server":"https://migration.example"}`
+	if err := app.UpdateSettingsJSON(payload); err != nil {
+		t.Fatalf("update settings: %v", err)
+	}
+	var settings proxy.SettingsConfig
+	if err := json.Unmarshal([]byte(app.GetSettingsJSON()), &settings); err != nil {
+		t.Fatalf("parse settings: %v", err)
+	}
+	if settings.MigrationEnabled == nil || !*settings.MigrationEnabled {
+		t.Fatalf("migration enabled = %v, want true", settings.MigrationEnabled)
+	}
+	if settings.MigrationServer != "https://migration.example" {
+		t.Fatalf("migration server = %q", settings.MigrationServer)
+	}
+
+	if err := app.UpdateSettingsJSON(`{"listen_port":"8080","migration_enabled":false,"migration_server":""}`); err != nil {
+		t.Fatalf("disable migration: %v", err)
+	}
+	// Fresh struct: omitempty drops an empty migration_server from the payload,
+	// which must not leave a stale value from the previous unmarshal behind.
+	var cleared proxy.SettingsConfig
+	if err := json.Unmarshal([]byte(app.GetSettingsJSON()), &cleared); err != nil {
+		t.Fatalf("parse settings: %v", err)
+	}
+	if cleared.MigrationEnabled != nil && *cleared.MigrationEnabled {
+		t.Fatal("migration still enabled after disable")
+	}
+	if cleared.MigrationServer != "" {
+		t.Fatalf("migration server = %q after clear", cleared.MigrationServer)
 	}
 }
 
@@ -324,9 +358,9 @@ func findStoredGroup(t *testing.T, app *App, id string) *proxy.SiteGroup {
 	return nil
 }
 
-// TestNoCertificateArtifactsCreated is the product-level CA-free guard: the
-// engine must never write a CA certificate/key or any PEM file into dataDir.
-func TestNoCertificateArtifactsCreated(t *testing.T) {
+// TestStartCreatesCAMaterial verifies the cert manager wiring: Start()
+// generates the CA under dataDir/certs and the certificate bridge returns it.
+func TestStartCreatesCAMaterial(t *testing.T) {
 	dir := t.TempDir()
 	app, err := NewApp(dir)
 	if err != nil {
@@ -335,33 +369,44 @@ func TestNoCertificateArtifactsCreated(t *testing.T) {
 	if err := app.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if err := app.StartProxy(); err != nil {
-		t.Fatalf("StartProxy: %v", err)
-	}
-	if err := app.StopProxy(); err != nil {
-		t.Fatalf("StopProxy: %v", err)
-	}
-	if err := app.Stop(); err != nil {
-		t.Fatalf("Stop: %v", err)
-	}
-	forbidden := []string{"ca.crt", "ca.key", ".pem", ".crt", ".key", "cert"}
-	err = filepath.Walk(dir, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	t.Cleanup(func() {
+		if err := app.Stop(); err != nil {
+			t.Logf("Stop: %v", err)
 		}
-		if info.IsDir() {
-			return nil
-		}
-		name := strings.ToLower(info.Name())
-		for _, marker := range forbidden {
-			if strings.Contains(name, marker) {
-				t.Errorf("forbidden certificate artifact in dataDir: %s", path)
-			}
-		}
-		return nil
 	})
-	if err != nil {
-		t.Fatalf("walk dataDir: %v", err)
+
+	caPath := filepath.Join(dir, "certs", "ca.crt")
+	keyPath := filepath.Join(dir, "certs", "ca.key")
+	if _, err := os.Stat(caPath); err != nil {
+		t.Fatalf("CA certificate missing: %v", err)
+	}
+	if _, err := os.Stat(keyPath); err != nil {
+		t.Fatalf("CA key missing: %v", err)
+	}
+
+	if got := app.GetCACertPath(); !strings.HasSuffix(got, filepath.Join("certs", "ca.crt")) {
+		t.Fatalf("GetCACertPath = %q", got)
+	}
+	pemData := app.GetCACertPEM()
+	if !strings.Contains(pemData, "BEGIN CERTIFICATE") {
+		t.Fatalf("GetCACertPEM returned no PEM block: %q", pemData)
+	}
+	if exported := app.ExportCert(); exported != pemData {
+		t.Fatalf("ExportCert differs from GetCACertPEM")
+	}
+
+	var status map[string]any
+	if err := json.Unmarshal([]byte(app.GetCAInstallStatusJSON()), &status); err != nil {
+		t.Fatalf("parse CA install status: %v", err)
+	}
+	for _, key := range []string{"Installed", "Platform", "CertPath", "InstallHelp"} {
+		if _, ok := status[key]; !ok {
+			t.Fatalf("CA install status missing key %q: %v", key, status)
+		}
+	}
+	var installed []map[string]any
+	if err := json.Unmarshal([]byte(app.GetInstalledCertsJSON()), &installed); err != nil {
+		t.Fatalf("parse installed certs: %v", err)
 	}
 }
 

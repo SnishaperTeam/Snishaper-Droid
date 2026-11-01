@@ -14,6 +14,7 @@
     "edit": "编辑",
     "delete": "删除",
     "apply": "应用",
+  "export": "导出",
     "enabled": "启用",
     "disabled": "禁用",
     "unknown": "未知",
@@ -82,6 +83,19 @@
     "download": "下载",
     "upload": "上传",
     "conn_info": "连接信息",
+    "cert_status": "证书状态",
+    "cert_installed": "根证书已安装",
+    "cert_not_installed": "未安装根证书",
+    "path_pending": "路径待定",
+    "install_cert": {
+      "title": "安装根证书",
+      "subtitle": "需安装证书以启用绕过功能",
+      "security_alert": "系统安全提示",
+      "security_desc": "安装时 Android 会弹出超级用户（Root）授权请求，请允许以继续完成配置。",
+      "installing": "正在安装...",
+      "install_now": "立即安装证书",
+      "remind_later": "稍后提醒我"
+    },
     "notifications": {
       "tun_not_running": "TUN 未进入运行态",
       "tun_updated": "TUN 状态已更新",
@@ -173,6 +187,27 @@
     "doh_url": "DoH URL",
     "sni_fake": "伪装 SNI (Frontend SNI)",
     "bootstrap_ips": "静态 IP (Bootstrap)",
+    "cert_policy": "证书校验策略 (高级)",
+    "verify_mode": "验证模式",
+    "allow_unknown": "允许未知签发者",
+    "allow_names": "允许名称列表",
+    "allow_suffixes": "允许后缀列表",
+    "modes": {
+      "default": "默认",
+      "strict": "严格",
+      "names": "名称",
+      "suffixes": "后缀",
+      "spki": "SPKI",
+      "chain": "链路"
+    },
+    "mode_descs": {
+      "default": "按系统默认证书校验",
+      "strict": "严格校验真实域名",
+      "names": "允许指定证书名称",
+      "suffixes": "允许指定域名后缀",
+      "spki": "允许指定公钥指纹",
+      "chain": "只校验证书链"
+    },
     "notifications": {
       "updated": "DNS 节点已更新",
       "added": "DNS 节点已添加",
@@ -214,6 +249,11 @@
       "ech_hint": "启用后尝试使用 ECH 连接",
       "cf_pool": "优选 IP 池",
       "cf_pool_hint": "优先使用 Cloudflare 优选 IP",
+      "cert_verify_warn": "仅在你明确知道目标证书来源时启用",
+      "allow_spki_list": "允许 SPKI SHA256 列表",
+      "placeholder_domains": "每行一个域名，例如\n*.github.com\ngithub.com",
+      "placeholder_suffixes": "每行一个后缀，例如\n.github.com\n.cloudfront.net",
+      "placeholder_spki": "每行一个 Base64 指纹",
       "nat64_enable": "启用 NAT64 映射",
       "nat64_hint": "开启此功能以执行 NAT64 映射转换",
       "nat64_profile": "NAT64 配置",
@@ -230,6 +270,10 @@
       "quic": "QUIC 分片混淆",
       "transparent": "不解密 TLS，仅透传",
       "migration": "TLS 1.2 会话恢复"
+    },
+    "cert_policy": {
+      "ignore": "忽略证书验证",
+      "ignore_hint": "忽略证书校验 (危险)"
     },
     "dns_options": {
       "default": "默认",
@@ -358,6 +402,7 @@
       "port": "端口",
       "proxy": "代理设置",
       "network": "网络",
+      "security": "证书 & 安全",
       "appearance": "语言与主题",
       "startup": "启动与后台",
       "logs": "日志管理",
@@ -409,6 +454,15 @@
       "title": "TUN 模式",
       "desc": "强制所有流量经过 TUN 网卡，实现全局代理。"
     },
+    "ca_management": {
+      "title": "CA 证书管理",
+      "export": "导出根证书",
+      "reset": "重置根证书",
+      "reset_hint": "这将删除现有证书并生成新的，需要重新安装到系统。",
+      "reset_success": "重置成功",
+      "reset_success_desc": "已生成新的根证书，请重新安装。"
+    },
+    "certs_count": "{count} CERTS",
     "cf_pool": {
       "fetch_now": "更新 IP 池"
     },

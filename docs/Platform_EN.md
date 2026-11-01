@@ -10,7 +10,7 @@
 | compileSdk / targetSdk | API 36 |
 | Supported ABIs | `arm64-v8a` (recommended), `armeabi-v7a`, `x86_64` (emulators) |
 | Test device | MuMu emulator (Android 15, x86_64) |
-| Runtime | Single Activity + Compose UI; Go engine runs in-process via the gomobile AAR |
+| Runtime | Single Activity + WebView (the desktop React/MUI frontend); Go engine runs in-process via the gomobile AAR |
 | Foreground service | Persistent notification while the proxy runs |
 
 ## 2. Feature matrix
@@ -27,21 +27,21 @@
 | Cloudflare preferred-IP pool | Speed test, health check, invalidation |
 | NAT64 | Multiple prefixes with tests |
 | Evolution tests | Direct / TCPing / domain-fronting / TLS-fragment / ECH / QUIC results shown |
-| Import / export | Desktop format with automatic CA-free sanitization |
+| Import / export | Desktop format; rules are only validated on import (mode whitelist + domain de-dup), CA fields are kept |
 | VpnService TUN (Beta) | Kotlin tunnel + Go `sing-tun` + gvisor stack, no root |
-| UI | 9 Material 3 screens, ☰ drawer, 6 color schemes × light/dark, zh/en/ru |
+| UI | The desktop React/MUI frontend (9 screens), ☰ drawer, 6 color schemes × light/dark, zh/en/ru |
 
-### Removed (CA-related)
+### CA capabilities (restored)
 
-| Capability | Reason |
+| Capability | Notes |
 |---|---|
-| CA generation / storage / export / regeneration / uninstall, trust-store install & status, certificate listing | Requirement: remove completely; Android/gomobile cannot do trust-chain or KeyStore interaction |
-| Rule modes `mitm` / `quic` / `migration` | Depend on local TLS termination |
-| Rule-level `cert_verify`, `sni_fake`, rule-level ECH | Only effective on the MITM path |
-| Smart routing strategy | The Cloudflare branch synthesizes MITM rules inside core |
-| Evolution conversion except TLS-Fragment / Direct | Generated rules are mitm/quic |
+| CA generation / regeneration / uninstall / export (PEM download) | Via `certmanager` (core v0.8.4-equivalent interface) |
+| Trust-store install & status | Mobile implementation: root su + `certutil` into the system trust store |
+| Certificate listing / uninstall | `GetInstalledCerts` / `UninstallCert(token)` |
+| Rule modes `mitm` / `quic` / `migration` and rule-level `cert_verify` | Same as desktop, fully supported by RuleForm |
+| Evolution rule application | Allow-list restriction lifted now that the CA paths are available |
 
-> 77 of the 222 built-in desktop rules (68 MITM + 9 QUIC) were converted to `tls-rf` when generating the Android defaults, with all CA fields stripped. Imported desktop configs receive the same sanitization and report the rewritten count.
+> Historical note: an early Droid build removed these capabilities under a CA-free design; they have since been fully restored. See `docs/core-ca-coupling.md` (historical audit) and `docs/EngineBridge.md`.
 
 ### Desktop-only, not applicable on Android
 
@@ -59,9 +59,8 @@ System proxy (registry), tray, window controls, autostart, in-app updater, open 
 
 - **TUN/VpnService** is Beta: the data plane is implemented but still needs real-device/emulator verification of connectivity and background survival.
 - No system-wide proxy API: use VpnService or a manual Wi-Fi proxy.
-- No CA: MITM / QUIC / Migration / domain fronting / rule-level ECH are unavailable by design.
-- Smart routing is unavailable; unmatched domains fall back to Direct.
-- Evolution is limited to probing and result display; applying rules is restricted by the CA-free allow-list.
+- Installing the CA into the system trust store requires a rooted device (su + certutil); non-rooted devices can generate/export the certificate but cannot install it system-wide.
+- Smart routing is unavailable (product decision, see the sanitize branch in `app.go`); unmatched domains fall back to Direct.
 - No in-app updater; watch [Releases](https://github.com/SnishaperTeam/Snishaper-Droid/releases).
 
 ## 5. Data directory
@@ -70,4 +69,4 @@ System proxy (registry), tray, window controls, autostart, in-app updater, open 
 |---|---|
 | `<filesDir>/config/settings.json` | App settings (port, language, theme, TUN, fragmentation, CF pool) |
 | `<filesDir>/rules/config.json` | Site rules / upstreams / DoH nodes / ECH profiles / NAT64 |
-| No certificate directory | This build never creates `ca.crt` / `ca.key` |
+| `<filesDir>/certs/` | Local CA (`ca.crt` / `ca.key`) created by certmanager |

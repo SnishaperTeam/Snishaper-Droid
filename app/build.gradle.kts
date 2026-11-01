@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     // AGP 9 has built-in Kotlin support: do not apply org.jetbrains.kotlin.android here.
-    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 /**
@@ -31,11 +30,19 @@ android {
         applicationId = "com.snishaper.android"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
+        // The release workflow's bot rewrites this line on every manual
+        // dispatch (see .github/workflows/release.yml). versionCode derives
+        // from versionName so sideload installers (MIUI et al.) always see a
+        // monotonic code; prerelease suffixes keep the base code.
         versionName = "1.29.0"
+        versionCode = (versionName ?: "0.0.0").substringBefore('-').split(".").let { parts ->
+            (parts.getOrElse(0) { "0" }.toIntOrNull() ?: 0) * 1_000_000 +
+                (parts.getOrElse(1) { "0" }.toIntOrNull() ?: 0) * 1_000 +
+                (parts.getOrElse(2) { "0" }.filter { it.isDigit() }.ifEmpty { "0" }.toIntOrNull() ?: 0)
+        }
 
         // Also expose the version to the UI layer (About / Settings rows).
-        buildConfigField("String", "CORE_VERSION", "\"core v0.4.0\"")
+        buildConfigField("String", "CORE_VERSION", "\"core v0.8.3\"")
     }
 
     buildTypes {
@@ -64,7 +71,6 @@ android {
     }
 
     buildFeatures {
-        compose = true
         buildConfig = true
     }
 
@@ -91,20 +97,6 @@ dependencies {
     }
 
     implementation("androidx.core:core-ktx:1.19.1")
-    implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.datastore:datastore-preferences:1.3.0")
-    implementation("androidx.navigation:navigation-compose:2.10.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+    implementation("androidx.activity:activity-ktx:1.13.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-
-    debugImplementation("androidx.compose.ui:ui-tooling")
 }

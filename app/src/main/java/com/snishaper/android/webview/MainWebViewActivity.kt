@@ -44,7 +44,11 @@ open class MainWebViewActivity : ComponentActivity() {
         const val TAG = SnishaperEngine.LOG_TAG
     }
 
-    private lateinit var webView: WebView
+    /**
+     * Null after the render process died (the object is unusable then) and
+     * during teardown — always access through a safe call.
+     */
+    private var webView: WebView? = null
     private lateinit var bridge: EngineBridge
     private lateinit var eventPump: WailsEventPump
     private val assetServer = AssetServer()
@@ -105,7 +109,7 @@ open class MainWebViewActivity : ComponentActivity() {
             }
         }
 
-        webView = WebView(this).apply {
+        val view = WebView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -113,17 +117,20 @@ open class MainWebViewActivity : ComponentActivity() {
             setBackgroundColor("#0E1116".toColorInt())
             overScrollMode = WebView.OVER_SCROLL_NEVER
         }
-        root.addView(webView)
+        // Local non-null val: the field is nullable, and lambdas below would
+        // lose the smart cast otherwise.
+        webView = view
+        root.addView(view)
 
-        configureSettings(webView.settings)
+        configureSettings(view.settings)
 
-        bridge = EngineBridge(webView)
+        bridge = EngineBridge(view)
         eventPump = WailsEventPump(bridge)
 
         // The runtime probes window.wails.invokeAsync before the bundle runs.
-        webView.addJavascriptInterface(WailsJavascriptInterface(bridge), "wails")
+        view.addJavascriptInterface(WailsJavascriptInterface(bridge), "wails")
 
-        webView.webViewClient = object : WebViewClient() {
+        view.webViewClient = object : WebViewClient() {
             /**
              * Serve the bundled SPA from a synthetic HTTPS origin.
              *
@@ -162,12 +169,20 @@ open class MainWebViewActivity : ComponentActivity() {
                 // didCrash() is API 26+; minSdk is 24
                 val crashed = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) && detail.didCrash()
                 Log.e(TAG, "webview: render process gone (crashed=$crashed)")
+                // The WebView object is unusable now: destroy it immediately
+                // instead of letting the teardown lifecycle below touch dead
+                // native state, then rebuild the whole activity.
+                runCatching {
+                    (view.parent as? android.view.ViewGroup)?.removeView(view)
+                    view.destroy()
+                }
+                webView = null
                 recreate()
                 return true
             }
         }
 
-        webView.webChromeClient = object : WebChromeClient() {
+        view.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                 Log.i(TAG, "webview console: ${message.message()} (${message.sourceId()}:${message.lineNumber()})")
                 return true
@@ -180,7 +195,7 @@ open class MainWebViewActivity : ComponentActivity() {
             WebView.setWebContentsDebuggingEnabled(true)
         }
 
-        webView.loadUrl(AssetServer.START_URL)
+        view.loadUrl(AssetServer.START_URL)
 
         eventPump.start()
 
@@ -189,7 +204,8 @@ open class MainWebViewActivity : ComponentActivity() {
             object : OnBackPressedCallback(enabled = true) {
                 override fun handleOnBackPressed() {
                     // The SPA keeps a react-router history; prefer it over closing.
-                    if (webView.canGoBack()) webView.goBack() else finish()
+                    val view = webView
+                    if (view != null && view.canGoBack()) view.goBack() else finish()
                 }
             },
         )
@@ -215,23 +231,28 @@ open class MainWebViewActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        webView.onResume()
-        webView.resumeTimers()
-        eventPump.start()
+        webView?.onResume()
+        webView?.resumeTimers()
+        // NOTE: no eventPump.start() here — every resume would stack another
+        // set of collectors on the same flows (triple events). Started once in
+        // onCreate, stopped in onDestroy.
     }
 
     override fun onPause() {
-        webView.onPause()
-        webView.pauseTimers()
+        webView?.onPause()
+        webView?.pauseTimers()
         super.onPause()
     }
 
     override fun onDestroy() {
         eventPump.stop()
-        runCatching {
-            webView.removeJavascriptInterface("wails")
-            webView.destroy()
+        webView?.let { view ->
+            runCatching {
+                view.removeJavascriptInterface("wails")
+                view.destroy()
+            }
         }
+        webView = null
         super.onDestroy()
     }
 }

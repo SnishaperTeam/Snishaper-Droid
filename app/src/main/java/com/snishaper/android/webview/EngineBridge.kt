@@ -34,11 +34,11 @@ import org.json.JSONObject
  * them.
  *
  * ## CA
- * This bridge exposes **no** certificate-authority surface. The desktop methods
- * `ExportCert`, `GetCACertPEM`, `GetCACertPath`, `GetCAInstallStatus`,
- * `GetInstalledCerts`, `InstallCA`, `OpenCAFile`, `OpenCertDir`,
- * `RegenerateCert` and `UninstallCert` are absent here and their frontend
- * counterparts were deleted, so no such call can be produced.
+ * The certificate surface mirrors the desktop binding names. `InstallCA`
+ * publishes the generated root into the Android system trust store via root
+ * su (see snishaper-core certmanager); the status/JSON payloads keep the
+ * desktop shapes. `OpenCAFile` / `OpenCertDir` stay desktop-only (no file
+ * manager on Android) and are not dispatched.
  */
 internal class EngineBridge(private val webView: WebView) {
 
@@ -256,6 +256,24 @@ internal class EngineBridge(private val webView: WebView) {
             "GetEvolutionTestStatus" -> parse(app.getEvolutionStatusJSON())
             "ApplyEvolutionRule" -> { app.applyEvolutionRule(a.string(0)); null }
 
+            // ---- CA (certmanager) ------------------------------------
+            "InstallCA" -> { app.installCA(); null }
+            "RegenerateCert" -> { app.regenerateCert(); null }
+            "UninstallCert" -> { app.uninstallCert(a.string(0)); null }
+            "GetCAInstallStatus" -> parse(app.getCAInstallStatusJSON())
+            "GetInstalledCerts" -> parse(app.getInstalledCertsJSON())
+            // Desktop bindings return the PEM string verbatim.
+            "ExportCert" -> app.exportCert()
+            "GetCACertPEM" -> app.getCACertPEM()
+            "GetCACertPath" -> app.getCACertPath()
+
+            // ---- migration session service ---------------------------
+            "GetMigrationEnabled" -> settings(app).optBoolean("migration_enabled", false)
+            "SetMigrationEnabled" -> { patchSettings(app) { it.put("migration_enabled", a.bool(0)) }; null }
+            "GetMigrationServer" -> settings(app).optString("migration_server", "")
+            "SetMigrationServer" -> { patchSettings(app) { it.put("migration_server", a.string(0)) }; null }
+            "TestMigration" -> app.testMigration(a.string(0))
+
             // ---- import / export -------------------------------------
             // Desktop `ExportConfig` returns a JSON *string*: keep that shape.
             "ExportConfig" -> app.exportConfigJSON()
@@ -263,14 +281,17 @@ internal class EngineBridge(private val webView: WebView) {
             "ImportConfigWithSummary" -> parse(app.importConfigWithSummaryJSON(a.string(0)))
 
             // ---- settings --------------------------------------------
-            "GetLanguage" -> settings().optString("language", "")
-            "SetLanguage" -> { patchSettings { it.put("language", a.string(0)) }; null }
-            "GetTheme" -> settings().optString("theme", "")
-            "SetTheme" -> { patchSettings { it.put("theme", a.string(0)) }; null }
-            "GetAppearanceMode" -> settings().optString("appearance_mode", "")
-            "SetAppearanceMode" -> { patchSettings { it.put("appearance_mode", a.string(0)) }; null }
-            "GetAutoUpdateRules" -> settings().optBoolean("auto_update_rules", false)
-            "SetAutoUpdateRules" -> { patchSettings { it.put("auto_update_rules", a.bool(0)) }; null }
+            // Always read fresh from the engine: the desktop frontend fires
+            // several Set* calls in one burst, and a cached snapshot would
+            // revert earlier keys in the same burst.
+            "GetLanguage" -> settings(app).optString("language", "")
+            "SetLanguage" -> { patchSettings(app) { it.put("language", a.string(0)) }; null }
+            "GetTheme" -> settings(app).optString("theme", "")
+            "SetTheme" -> { patchSettings(app) { it.put("theme", a.string(0)) }; null }
+            "GetAppearanceMode" -> settings(app).optString("appearance_mode", "")
+            "SetAppearanceMode" -> { patchSettings(app) { it.put("appearance_mode", a.string(0)) }; null }
+            "GetAutoUpdateRules" -> settings(app).optBoolean("auto_update_rules", false)
+            "SetAutoUpdateRules" -> { patchSettings(app) { it.put("auto_update_rules", a.bool(0)) }; null }
             "UpdateRules" -> { app.forceFetchCloudflareIPs(); null }
 
             "GetAppVersion" -> appVersion()
@@ -288,18 +309,19 @@ internal class EngineBridge(private val webView: WebView) {
         SnishaperEngine.withApp { app -> block(app) }
     }
 
-    private fun settings(): JSONObject = SnishaperEngine.settings.value.rawJson
-        .let { runCatching { JSONObject(it) }.getOrElse { JSONObject() } }
+    /** Reads the live settings document from the engine (never cached). */
+    private fun settings(app: App): JSONObject =
+        runCatching { JSONObject(app.getSettingsJSON()) }.getOrElse { JSONObject() }
 
     /**
      * Applies a single settings key. `UpdateSettingsJSON` replaces every section
-     * it receives, so the complete current document is patched and sent back.
+     * it receives, so the complete current document is read fresh, patched and
+     * sent back.
      */
-    private fun patchSettings(edit: (JSONObject) -> Unit) {
-        val current = settings()
+    private fun patchSettings(app: App, edit: (JSONObject) -> Unit) {
+        val current = settings(app)
         edit(current)
-        runBlocking { SnishaperEngine.withApp { app -> app.updateSettingsJSON(current.toString()) } }
-        runBlocking { SnishaperEngine.loadSettings() }
+        app.updateSettingsJSON(current.toString())
     }
 
     private fun appVersion(): String =

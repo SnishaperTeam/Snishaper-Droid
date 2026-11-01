@@ -5,7 +5,7 @@
 #   checkout → setup-java 17（需求对齐）→ setup-java 25（实际构建 JDK）→
 #   Android SDK/NDK（使用 runner 预装 SDK + sdkmanager 直装）→ setup-go 1.27 →
 #   gcc → 安装 gomobile/gobind（固定版本）→ CI 切官方 Maven/Gradle 源 →
-#   gomobile bind 生成 CA-free AAR → verify-aar.ps1 契约校验 →
+#   gomobile bind 生成 AAR（含 certmanager CA 支持）→ verify_aar.py 契约校验 →
 #   gradlew lint test assembleDebug → 上传 APK/AAR artifacts
 #
 # PR 流程（与桌面版 build.yml 相同的 bot 状态机）：

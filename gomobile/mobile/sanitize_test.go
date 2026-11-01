@@ -10,42 +10,17 @@ import (
 	"github.com/SnishaperTeam/snishaper-core/proxy"
 )
 
-func TestNormalizeAndroidMode(t *testing.T) {
-	cases := []struct {
-		in      string
-		want    string
-		changed bool
-	}{
-		{"tls-rf", modeTLSRF, false},
-		{"tls_rf", modeTLSRF, true},
-		{"transparent", modeTransparent, false},
-		{"direct", modeDirect, false},
-		{"mitm", modeTLSRF, true},
-		{"MITM", modeTLSRF, true},
-		{"quic", modeTLSRF, true},
-		{"migration", modeTLSRF, true},
-		{"", modeTransparent, true},
-		{"whatever", modeTLSRF, true},
-	}
-	for _, tc := range cases {
-		got, changed := normalizeAndroidMode(tc.in)
-		if got != tc.want || changed != tc.changed {
-			t.Errorf("normalizeAndroidMode(%q) = (%q,%v), want (%q,%v)", tc.in, got, changed, tc.want, tc.changed)
-		}
-	}
-}
-
-func TestSiteGroupWriteRejectsCAModes(t *testing.T) {
-	for _, mode := range []string{"mitm", "quic", "migration", "direct", ""} {
-		group := proxy.SiteGroup{Name: "x", Mode: mode, Domains: []string{"example.com"}}
-		if err := sanitizeSiteGroupForWrite(&group); err == nil {
-			t.Errorf("mode %q must be rejected on Android", mode)
-		}
-	}
-	for _, mode := range []string{"tls-rf", "transparent"} {
+func TestSiteGroupWriteModeWhitelist(t *testing.T) {
+	for _, mode := range []string{"mitm", "tls-rf", "tls_rf", "quic", "transparent", "migration"} {
 		group := proxy.SiteGroup{Name: "x", Mode: mode, Domains: []string{"example.com"}}
 		if err := sanitizeSiteGroupForWrite(&group); err != nil {
 			t.Errorf("mode %q must be accepted: %v", mode, err)
+		}
+	}
+	for _, mode := range []string{"direct", "", "whatever"} {
+		group := proxy.SiteGroup{Name: "x", Mode: mode, Domains: []string{"example.com"}}
+		if err := sanitizeSiteGroupForWrite(&group); err == nil {
+			t.Errorf("mode %q must be rejected", mode)
 		}
 	}
 	empty := proxy.SiteGroup{Name: "x", Mode: "tls-rf"}
@@ -54,10 +29,10 @@ func TestSiteGroupWriteRejectsCAModes(t *testing.T) {
 	}
 }
 
-func TestSiteGroupWriteClearsCAFields(t *testing.T) {
+func TestSiteGroupWritePreservesCAFields(t *testing.T) {
 	group := proxy.SiteGroup{
 		Name:               "x",
-		Mode:               "tls-rf",
+		Mode:               "mitm",
 		Domains:            []string{"example.com"},
 		SniFake:            "fake.example",
 		ECHEnabled:         true,
@@ -70,81 +45,38 @@ func TestSiteGroupWriteClearsCAFields(t *testing.T) {
 	if err := sanitizeSiteGroupForWrite(&group); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if group.SniFake != "" || group.ECHEnabled || group.ECHProfileID != "" || group.ECHDomain != "" ||
-		group.ECHDiscoveryDomain != "" || group.ECHDoHUpstream != "" || !group.CertVerify.IsZero() {
-		t.Fatalf("CA fields were not cleared: %+v", group)
+	if group.Mode != "mitm" || group.SniFake != "fake.example" || !group.ECHEnabled ||
+		group.ECHProfileID != "legacy-cloudflare" || group.CertVerify.IsZero() {
+		t.Fatalf("CA fields were not preserved: %+v", group)
 	}
 }
 
-func TestSanitizeRulesConfigDesktopDefaults(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("testdata", "desktop-rules.json"))
-	if err != nil {
-		t.Fatalf("read testdata: %v", err)
+func TestSiteGroupWriteDeduplicatesDomains(t *testing.T) {
+	group := proxy.SiteGroup{
+		Name:    "x",
+		Mode:    "tls-rf",
+		Domains: []string{"a.test", " a.test ", "", "b.test", "a.test"},
 	}
-	var rulesConfig proxy.RulesConfig
-	if err := json.Unmarshal(raw, &rulesConfig); err != nil {
-		t.Fatalf("parse desktop rules: %v", err)
+	if err := sanitizeSiteGroupForWrite(&group); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(rulesConfig.SiteGroups) != 222 {
-		t.Fatalf("desktop site groups = %d, want 222", len(rulesConfig.SiteGroups))
+	want := []string{"a.test", "b.test"}
+	if len(group.Domains) != len(want) {
+		t.Fatalf("domains = %v, want %v", group.Domains, want)
 	}
-	rewritten := sanitizeRulesConfig(&rulesConfig)
-	if rewritten == 0 {
-		t.Fatal("expected at least one rewritten rule")
-	}
-	direct := 0
-	for _, group := range rulesConfig.SiteGroups {
-		switch group.Mode {
-		case "tls-rf", "transparent":
-		case "direct":
-			direct++
-		default:
-			t.Fatalf("rule %q still has unsupported mode %q", group.Name, group.Mode)
-		}
-		if group.SniFake != "" || !group.CertVerify.IsZero() || group.ECHEnabled ||
-			group.ECHProfileID != "" || group.ECHDomain != "" {
-			t.Fatalf("rule %q still carries CA fields: %+v", group.Name, group)
-		}
-	}
-	if direct != 1 {
-		t.Fatalf("direct built-in rules = %d, want 1", direct)
-	}
-}
-
-func TestSanitizeImportExportJSON(t *testing.T) {
-	input := `{
-	  "mitm": "{\"version\":\"1.0\",\"type\":\"mitm\",\"rules\":[{\"name\":\"a\",\"mode\":\"mitm\",\"domains\":[\"a.test\"],\"sni_fake\":\"fake\",\"cert_verify\":{\"mode\":\"strict_real\"},\"ech_enabled\":true}]}",
-	  "transparent": "{\"version\":\"1.0\",\"type\":\"transparent\",\"rules\":[{\"name\":\"b\",\"mode\":\"tls-rf\",\"domains\":[\"b.test\"],\"ech_enabled\":true}]}"
-	}`
-	sanitized, rewritten, err := sanitizeImportExportJSON(input)
-	if err != nil {
-		t.Fatalf("sanitize: %v", err)
-	}
-	if rewritten != 2 {
-		t.Fatalf("rewritten = %d, want 2", rewritten)
-	}
-	var wrapper map[string]string
-	if err := json.Unmarshal([]byte(sanitized), &wrapper); err != nil {
-		t.Fatalf("parse sanitized wrapper: %v", err)
-	}
-	for _, key := range []string{"mitm", "transparent"} {
-		var cf proxy.ConfigFile
-		if err := json.Unmarshal([]byte(wrapper[key]), &cf); err != nil {
-			t.Fatalf("parse %s config: %v", key, err)
-		}
-		for _, rule := range cf.Rules {
-			if rule.Mode != "tls-rf" && rule.Mode != "transparent" {
-				t.Fatalf("%s rule mode = %q", key, rule.Mode)
-			}
-			if rule.SniFake != "" || !rule.CertVerify.IsZero() || rule.ECHEnabled {
-				t.Fatalf("%s rule still carries CA fields: %+v", key, rule)
-			}
+	for i := range want {
+		if group.Domains[i] != want[i] {
+			t.Fatalf("domains = %v, want %v", group.Domains, want)
 		}
 	}
 }
 
-func TestCommittedDefaultsAreCAFree(t *testing.T) {
-	rulesRaw, err := os.ReadFile(filepath.Join("..", "defaults", "rules.json"))
+// assetsDefaults points at the committed Android defaults that both the app
+// (AssetSeeder) and this test consume — a single copy, no duplicates.
+var assetsDefaults = filepath.Join("..", "..", "app", "src", "main", "assets", "defaults")
+
+func TestCommittedDefaultsAreValid(t *testing.T) {
+	rulesRaw, err := os.ReadFile(filepath.Join(assetsDefaults, "rules.json"))
 	if err != nil {
 		t.Fatalf("read defaults rules: %v", err)
 	}
@@ -155,11 +87,15 @@ func TestCommittedDefaultsAreCAFree(t *testing.T) {
 	if len(rulesConfig.SiteGroups) != 222 {
 		t.Fatalf("defaults site groups = %d, want 222", len(rulesConfig.SiteGroups))
 	}
-	if rewritten := sanitizeRulesConfig(&rulesConfig); rewritten != 0 {
-		t.Fatalf("committed defaults are not CA-free: %d rule(s) needed sanitizing", rewritten)
+	for _, group := range rulesConfig.SiteGroups {
+		switch group.Mode {
+		case "mitm", "tls-rf", "quic", "transparent", "migration", "direct":
+		default:
+			t.Fatalf("defaults rule %q has unsupported mode %q", group.Name, group.Mode)
+		}
 	}
 
-	settingsRaw, err := os.ReadFile(filepath.Join("..", "defaults", "settings.json"))
+	settingsRaw, err := os.ReadFile(filepath.Join(assetsDefaults, "settings.json"))
 	if err != nil {
 		t.Fatalf("read defaults settings: %v", err)
 	}

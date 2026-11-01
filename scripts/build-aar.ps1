@@ -1,7 +1,7 @@
 ﻿#Requires -Version 7.0
 <#
 .SYNOPSIS
-    Builds the CA-free gomobile AAR for SniShaper Droid.
+    Builds the gomobile AAR for SniShaper Droid (CA/certmanager included).
 
 .DESCRIPTION
     Fixes the machine environment values that are known to be wrong/stale in a
@@ -89,14 +89,14 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "go test failed" }
     }
 
-    Write-Host "[build-aar] CA guard: go list -deps ./mobile must not contain certmanager"
+    Write-Host "[build-aar] CA check: certmanager must be in the mobile import graph"
     $deps = & go list -deps ./mobile
     if ($LASTEXITCODE -ne 0) { throw "go list -deps failed" }
     $caHits = @($deps | Select-String -SimpleMatch "snishaper-core/certmanager")
-    if ($caHits.Count -gt 0) {
-        throw "certmanager is in the mobile import graph: $($caHits -join ', ')"
+    if ($caHits.Count -eq 0) {
+        throw "certmanager is missing from the mobile import graph (CA support was removed?)"
     }
-    Write-Host "[build-aar] CA guard OK: certmanager is not in the mobile import graph"
+    Write-Host "[build-aar] CA check OK: certmanager is in the mobile import graph"
 
     # --- 3) gomobile bind ---------------------------------------------------
     # -trimpath + -ldflags "-s -w" keep the AAR under GitHub's 100 MB file

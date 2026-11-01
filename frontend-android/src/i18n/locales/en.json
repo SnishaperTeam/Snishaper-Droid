@@ -14,6 +14,7 @@
     "edit": "Edit",
     "delete": "Delete",
     "apply": "Apply",
+  "export": "Export",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "unknown": "Unknown",
@@ -82,6 +83,19 @@
     "download": "Download",
     "upload": "Upload",
     "conn_info": "Connection Info",
+    "cert_status": "Certificate",
+    "cert_installed": "Root Cert Installed",
+    "cert_not_installed": "Root Cert Not Installed",
+    "path_pending": "Path Pending",
+    "install_cert": {
+      "title": "Install Root Certificate",
+      "subtitle": "Certificate required for bypassing",
+      "security_alert": "Security Alert",
+      "security_desc": "Android will show a superuser (root) request during installation. Please grant it to proceed.",
+      "installing": "Installing...",
+      "install_now": "Install Now",
+      "remind_later": "Remind Me Later"
+    },
     "notifications": {
       "tun_not_running": "TUN is not running",
       "tun_updated": "TUN status updated",
@@ -173,6 +187,27 @@
     "doh_url": "DoH URL",
     "sni_fake": "Frontend SNI",
     "bootstrap_ips": "Bootstrap IPs",
+    "cert_policy": "Cert Verify Policy (Advanced)",
+    "verify_mode": "Verify Mode",
+    "allow_unknown": "Allow Unknown CA",
+    "allow_names": "Allowed Names",
+    "allow_suffixes": "Allowed Suffixes",
+    "modes": {
+      "default": "Default",
+      "strict": "Strict",
+      "names": "Names",
+      "suffixes": "Suffixes",
+      "spki": "SPKI",
+      "chain": "Chain"
+    },
+    "mode_descs": {
+      "default": "Standard system verification",
+      "strict": "Strict real hostname check",
+      "names": "Allow specific cert names",
+      "suffixes": "Allow specific domain suffixes",
+      "spki": "Allow specific SPKI fingerprints",
+      "chain": "Verify chain only"
+    },
     "notifications": {
       "updated": "DNS Node updated",
       "added": "DNS Node added",
@@ -214,6 +249,11 @@
       "ech_hint": "Try ECH connection if enabled",
       "cf_pool": "Preferred IP Pool",
       "cf_pool_hint": "Prioritize using Cloudflare Preferred IPs",
+      "cert_verify_warn": "Only enable if you are sure about the target certificate source",
+      "allow_spki_list": "Allow SPKI SHA256 list",
+      "placeholder_domains": "One domain per line, e.g.\n*.github.com\ngithub.com",
+      "placeholder_suffixes": "One suffix per line, e.g.\n.github.com\n.cloudfront.net",
+      "placeholder_spki": "One Base64 fingerprint per line",
       "nat64_enable": "Enable NAT64 Mapping",
       "nat64_hint": "Enable NAT64 mapping transformation for this rule",
       "nat64_profile": "NAT64 Configuration",
@@ -230,6 +270,10 @@
       "quic": "QUIC Fragment Obfuscation",
       "transparent": "No TLS decryption, pass-through",
       "migration": "TLS 1.2 Session Resumption"
+    },
+    "cert_policy": {
+      "ignore": "Ignore Cert Verification",
+      "ignore_hint": "Bypass certificate validation (Dangerous)"
     },
     "dns_options": {
       "default": "Default",
@@ -358,6 +402,7 @@
       "port": "Port",
       "proxy": "Proxy",
       "network": "Network",
+      "security": "Security",
       "appearance": "UI & Theme",
       "startup": "Startup",
       "logs": "Logs",
@@ -409,6 +454,15 @@
       "title": "TUN Mode",
       "desc": "Force all traffic through TUN for global proxying."
     },
+    "ca_management": {
+      "title": "CA Management",
+      "export": "Export Root CA",
+      "reset": "Reset Root CA",
+      "reset_hint": "This will delete the current cert and generate a new one.",
+      "reset_success": "Reset Successful",
+      "reset_success_desc": "New root certificate generated. Please reinstall it."
+    },
+    "certs_count": "{count} CERTS",
     "cf_pool": {
       "fetch_now": "Refresh IP Pool"
     },

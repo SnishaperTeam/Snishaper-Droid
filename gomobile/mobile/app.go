@@ -11,16 +11,23 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SnishaperTeam/snishaper-core/certmanager"
+	"github.com/SnishaperTeam/snishaper-core/config"
 	"github.com/SnishaperTeam/snishaper-core/evolution"
 	corelog "github.com/SnishaperTeam/snishaper-core/log"
 	"github.com/SnishaperTeam/snishaper-core/proxy"
 )
 
 const (
-	// engineVersion is shown on the About / Settings pages.
+	// engineVersion is shown on the About / Settings pages. The release
+	// workflow's bot commits bumps here (see .github/workflows/release.yml).
 	engineVersion = "1.29.0"
+	// releaseChannel is the distribution channel shown on the About page
+	// (stable | alpha | beta | rc). The release bot commits it together with
+	// the version bump; "release" dispatches are written as "stable".
+	releaseChannel = "stable"
 	// coreVersion is the pinned snishaper-core release (see go.mod).
-	coreVersion = "v0.4.0"
+	coreVersion = "v0.8.4"
 
 	proxyModeRule        = ""
 	proxyModeTransparent = "transparent"
@@ -30,10 +37,9 @@ const (
 )
 
 // App is the only gomobile exported type besides Listener. It owns the engine:
-// RuleManager + ProxyServer + AutoRouter (always Mode "") + evolution.Tester.
-//
-// Android never installs a CertGenerator: the MITM/QUIC code paths of the core
-// stay unreachable and no certificate material is ever produced.
+// RuleManager + ProxyServer + CertManager (MITM/QUIC CA material, installed
+// into the Android system store via root su) + AutoRouter (always Mode "") +
+// evolution.Tester.
 type App struct {
 	dataDir      string
 	settingsPath string
@@ -45,11 +51,13 @@ type App struct {
 	started bool
 	rules   *proxy.RuleManager
 	server  *proxy.ProxyServer
+	certs   *certmanager.CertManager
 	tun     tunHandle
 	lastErr string
 
 	ipv6Available bool
 	ipv6CheckedAt time.Time
+	ipv6Probing   bool
 
 	listenerMu sync.RWMutex
 	listener   Listener
@@ -137,6 +145,14 @@ func (a *App) Start() (err error) {
 	srv.SetLogCallback(a.appendLog)
 	srv.UpdateCloudflareIPPool(rm.GetCloudflareConfig().PreferredIPs)
 
+	// The CA manager generates the local root (dataDir/certs) and feeds the
+	// MITM/QUIC paths; InstallCA publishes it into the Android system store.
+	certs, err := certmanager.InitCertManagerFor(config.Brand{}, filepath.Join(a.dataDir, "certs"))
+	if err != nil {
+		return fmt.Errorf("init cert manager: %w", err)
+	}
+	srv.SetCertGenerator(certs)
+
 	// Mode is forced to "" by sanitizeConfigLocked, so the auto router can only
 	// ever return "direct"; it is kept for the read-only GFWList status page.
 	rm.InitAutoRouter(srv.GetDoHResolver())
@@ -148,12 +164,16 @@ func (a *App) Start() (err error) {
 	a.mu.Lock()
 	a.rules = rm
 	a.server = srv
+	a.certs = certs
 	a.evoAutoRouter = evoRouter
 	a.started = true
 	a.lastErr = ""
 	a.mu.Unlock()
 
 	a.dispatchLog(fmt.Sprintf("[engine] started (core %s, %d site groups, %d dns nodes)", coreVersion, len(rm.GetSiteGroups()), len(rm.GetDNSNodes())))
+	// Warm the IPv6 egress cache in the background so the first bridge
+	// GetIPv6Available does not block on the ~2s probe.
+	go a.refreshIPv6()
 	a.pushState()
 	return nil
 }
@@ -211,6 +231,7 @@ func (a *App) Stop() (err error) {
 	a.started = false
 	a.server = nil
 	a.rules = nil
+	a.certs = nil
 	a.evoAutoRouter = nil
 	a.mu.Unlock()
 
@@ -442,16 +463,20 @@ func (a *App) ClearLogs() {
 	}
 }
 
-// GetIPv6Available returns the cached IPv6 egress probe result.
+// GetIPv6Available returns the cached IPv6 egress probe result. Start() warms
+// the cache in the background; on a cold or stale cache this returns the
+// previous value immediately and schedules a background probe instead of
+// blocking the single-threaded bridge ~2s — the corrected value arrives via
+// the state-change listener.
 func (a *App) GetIPv6Available() bool {
 	a.mu.Lock()
-	if !a.ipv6CheckedAt.IsZero() && time.Since(a.ipv6CheckedAt) < 30*time.Second {
-		value := a.ipv6Available
-		a.mu.Unlock()
-		return value
-	}
+	stale := a.ipv6CheckedAt.IsZero() || time.Since(a.ipv6CheckedAt) >= 30*time.Second
+	value := a.ipv6Available
 	a.mu.Unlock()
-	return a.refreshIPv6()
+	if stale {
+		go a.refreshIPv6()
+	}
+	return value
 }
 
 // RefreshIPv6Check runs the IPv6 egress probe immediately.
@@ -464,7 +489,7 @@ func (a *App) GetBuildInfoJSON() (out string) {
 	defer recoverString(&out)
 	return marshalJSON(buildInfoPayload{
 		Version:     engineVersion,
-		Channel:     "stable",
+		Channel:     releaseChannel,
 		CoreVersion: coreVersion,
 		GoVersion:   runtime.Version(),
 		Platform:    runtime.GOOS + "/" + runtime.GOARCH,
@@ -547,29 +572,13 @@ func (a *App) sanitizeConfigLocked(rm *proxy.RuleManager) error {
 	if rm == nil {
 		return fmt.Errorf("rule manager is nil")
 	}
+	// Smart routing stays off on Android (product decision); everything else
+	// (MITM/QUIC/migration modes, CA fields) passes through untouched.
 	if rm.GetAutoRoutingConfig().Mode != "" {
 		if err := rm.UpdateAutoRoutingConfig(proxy.AutoRoutingConfig{}); err != nil {
 			return err
 		}
-		a.dispatchLog("[sanitize] smart routing disabled: the Cloudflare branch needs MITM+CA")
-	}
-	if rm.GetMigrationEnabled() {
-		if err := rm.SetMigrationEnabled(false); err != nil {
-			return err
-		}
-		a.dispatchLog("[sanitize] migration service disabled on Android")
-	}
-	if rm.GetMigrationServer() != "" {
-		if err := rm.SetMigrationServer(""); err != nil {
-			return err
-		}
-	}
-	rewritten, err := a.enforceRulesLocked(rm)
-	if err != nil {
-		return err
-	}
-	if rewritten > 0 {
-		a.dispatchLog(fmt.Sprintf("[sanitize] neutralized %d legacy rule(s) to the CA-free policy", rewritten))
+		a.dispatchLog("[sanitize] smart routing disabled on Android")
 	}
 	if !isNumericPort(rm.GetListenPort()) {
 		rm.SetListenPort(strconv.Itoa(defaultListenPort))
