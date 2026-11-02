@@ -58,9 +58,10 @@ class TunVpnService : VpnService() {
 
     private fun establishAndStart() {
         if (tun != null) return // already running
+        val mtu = SnishaperEngine.tunMtu()
         runCatching {
             val builder = Builder()
-                .setMtu(MTU)
+                .setMtu(mtu)
                 // Must match the Go constants in gomobile/mobile/tun_android.go:
                 // the gvisor stack answers DNS on 198.18.0.2 (fake-IP range
                 // 198.18.0.0/16), so the interface address is its gateway.
@@ -81,7 +82,7 @@ class TunVpnService : VpnService() {
             // shortcut: if Go startTun fails before taking ownership, the fd leaks until process death.
             val fd = pfd.detachFd()
             serviceScope.launch {
-                runCatching { SnishaperEngine.startTun(fd, MTU) }
+                runCatching { SnishaperEngine.startTun(fd, mtu) }
                     .onFailure { error ->
                         android.util.Log.e("Snishaper", "vpn: startTun failed: ${error.message}", error)
                         stopTunAndSelf()
@@ -152,7 +153,6 @@ class TunVpnService : VpnService() {
     companion object {
         const val CHANNEL_ID = "snishaper_vpn"
         const val NOTIFICATION_ID = 47
-        const val MTU = 1500
         const val SESSION = "SniShaper TUN"
         const val ACTION_STOP = "com.snishaper.android.vpn.STOP"
     }

@@ -150,7 +150,6 @@ internal class EngineBridge(private val webView: WebView) {
             "GetListenPort" -> JSONObject(app.statusJSON).optInt("listenPort", 0)
             "SetListenPort" -> { app.setListenPort(a.int(0)); null }
             "GetProxyMode" -> app.proxyMode
-            "SetProxyMode" -> { app.proxyMode = a.string(0); null }
             "GetStats" -> parse(app.statsJSON)
 
             // ---- status / logs ---------------------------------------
@@ -166,13 +165,8 @@ internal class EngineBridge(private val webView: WebView) {
             "DeleteSiteGroup" -> { app.deleteSiteGroup(a.string(0)); null }
 
             // ---- upstreams -------------------------------------------
-            "GetUpstreams" -> parse(app.getUpstreamsJSON())
-            "AddUpstream" -> app.addUpstreamJSON(a.obj(0).toString())
-            "UpdateUpstream" -> { app.updateUpstreamJSON(a.obj(0).toString()); null }
-            "DeleteUpstream" -> { app.deleteUpstream(a.string(0)); null }
             "GetRulesLayerInfo" -> parse(app.getRulesLayerInfoJSON())
             "RevertSiteGroupToUpstream" -> { app.revertSiteGroupToUpstream(a.string(0)); null }
-            "RevertUpstreamConfigToUpstream" -> { app.revertUpstreamConfigToUpstream(a.string(0)); null }
 
             // ---- DNS -------------------------------------------------
             "GetDNSNodes" -> parse(app.getDNSNodesJSON())
@@ -196,9 +190,6 @@ internal class EngineBridge(private val webView: WebView) {
             "TestNAT64Profile" -> parse(app.testNAT64Profile(a.string(0)))
 
             // ---- fragment / TUN / Cloudflare -------------------------
-            "GetFragmentConfig" -> parse(app.getFragmentConfigJSON())
-            "SetFragmentConfig" -> { app.fragmentConfigJSON = a.obj(0).toString(); null }
-            "ResetFragmentConfig" -> { app.resetFragmentConfig(); null }
 
             "GetTUNConfig" -> parse(app.getTUNConfigJSON())
             "UpdateTUNConfig" -> { app.updateTUNConfigJSON(a.obj(0).toString()); null }
@@ -238,14 +229,11 @@ internal class EngineBridge(private val webView: WebView) {
             "UpdateCloudflareConfig" -> { app.updateCloudflareConfigJSON(a.obj(0).toString()); null }
             "GetCloudflareIPStats" -> parse(app.getCloudflareIPStatsJSON())
             "ForceFetchCloudflareIPs" -> { app.forceFetchCloudflareIPs(); null }
-            "RefreshCloudflareIPPool" -> { app.forceFetchCloudflareIPs(); null }
             "TriggerCFHealthCheck" -> { app.triggerCFHealthCheck(); null }
             "RemoveInvalidCFIPs" -> { app.removeInvalidCFIPs(); null }
 
             // ---- routing (Android: read-only status) -----------------
             "GetAutoRoutingStatus" -> parse(app.getAutoRoutingStatusJSON())
-            "GetAutoRoutingConfig" -> parse(app.getAutoRoutingConfigJSON())
-            "UpdateAutoRoutingConfig" -> { app.updateAutoRoutingConfigJSON(a.obj(0).toString()); null }
 
             // ---- evolution -------------------------------------------
             "StartEvolutionTest" -> {
@@ -263,13 +251,9 @@ internal class EngineBridge(private val webView: WebView) {
             "GetCAInstallStatus" -> parse(app.getCAInstallStatusJSON())
             "GetInstalledCerts" -> parse(app.getInstalledCertsJSON())
             // Desktop bindings return the PEM string verbatim.
-            "ExportCert" -> app.exportCert()
             "GetCACertPEM" -> app.getCACertPEM()
-            "GetCACertPath" -> app.getCACertPath()
 
             // ---- migration session service ---------------------------
-            "GetMigrationEnabled" -> settings(app).optBoolean("migration_enabled", false)
-            "SetMigrationEnabled" -> { patchSettings(app) { it.put("migration_enabled", a.bool(0)) }; null }
             "GetMigrationServer" -> settings(app).optString("migration_server", "")
             "SetMigrationServer" -> { patchSettings(app) { it.put("migration_server", a.string(0)) }; null }
             "TestMigration" -> app.testMigration(a.string(0))
@@ -277,7 +261,6 @@ internal class EngineBridge(private val webView: WebView) {
             // ---- import / export -------------------------------------
             // Desktop `ExportConfig` returns a JSON *string*: keep that shape.
             "ExportConfig" -> app.exportConfigJSON()
-            "ImportConfig" -> { app.importConfigWithSummaryJSON(a.string(0)); null }
             "ImportConfigWithSummary" -> parse(app.importConfigWithSummaryJSON(a.string(0)))
 
             // ---- settings --------------------------------------------
@@ -295,6 +278,7 @@ internal class EngineBridge(private val webView: WebView) {
             "UpdateRules" -> { app.forceFetchCloudflareIPs(); null }
 
             "GetAppVersion" -> appVersion()
+            "GetBuildInfo" -> parse(app.buildInfoJSON)
 
             else -> throw BridgeException("unsupported Android bridge method: $name")
         }

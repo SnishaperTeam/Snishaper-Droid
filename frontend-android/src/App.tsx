@@ -1,14 +1,13 @@
-import React, { Suspense, lazy, useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback, useRef, createContext } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Box, CssBaseline, ThemeProvider, AppBar, Toolbar, Typography, CircularProgress, IconButton, useColorScheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { keyframes } from '@emotion/react';
 import Sidebar from './components/Sidebar';
 import ToastProvider from './components/ToastProvider';
-import { appTheme, defaultTheme, availableThemes } from './theme';
+import { defaultTheme, availableThemes } from './theme';
 import {
-  GetListenPort, GetCloseToTray, GetAutoStart,
-  GetShowMainWindowOnAutoStart, GetAutoEnableProxyOnAutoStart, GetAutoEnableSysProxyOnAutoStart, GetAutoUpdateRules,
+  GetListenPort, GetAutoUpdateRules,
   GetTUNConfig, GetTUNStatus, GetCloudflareConfig,
   GetCAInstallStatus, GetInstalledCerts, GetCloudflareIPStats,
   GetLanguage, GetTheme, SetTheme, GetIPv6Available, GetTutorialDone, GetAppearanceMode, EventsOn
@@ -38,11 +37,6 @@ const Evolution = lazy(() => import('./pages/Evolution'));
 
 interface SettingsCache {
   port: number;
-  closeToTray: boolean;
-  autoStart: boolean;
-  showMainOnAutoStart: boolean;
-  autoEnableProxyOnAutoStart: boolean;
-  autoEnableSysProxyOnAutoStart: boolean;
   autoUpdateRules: boolean;
   tunConfig: any;
   tunStatus: any;
@@ -51,14 +45,11 @@ interface SettingsCache {
   cfConfig: any;
   ipStats: any[];
   language: string;
-  themeMode: string;
   ipv6Available: boolean;
 }
 
 const defaultCache: SettingsCache = {
-  port: 8080, closeToTray: false, autoStart: false,
-  showMainOnAutoStart: true, autoEnableProxyOnAutoStart: false,
-  autoEnableSysProxyOnAutoStart: true,
+  port: 8080,
   autoUpdateRules: true,
   tunConfig: { enabled: false, mtu: 9000, dns_hijack: true, auto_route: true, strict_route: true },
   tunStatus: { supported: true, running: false, enabled: false, message: '' },
@@ -67,7 +58,6 @@ const defaultCache: SettingsCache = {
   cfConfig: { api_key: '', auto_update: true },
   ipStats: [],
   language: '',
-  themeMode: 'dark',
   ipv6Available: true
 };
 
@@ -80,10 +70,8 @@ export { SettingsCtx };
 const App: React.FC = () => {
   const [settingsCache, setSettingsCache] = useState<SettingsCache>({
     ...defaultCache,
-    language: localStorage.getItem('language') || '',
-    themeMode: (localStorage.getItem('mui-mode') as any) || 'dark'
+    language: localStorage.getItem('language') || ''
   });
-  const [initialized, setInitialized] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [themeId, setThemeId] = useState<string>(() => localStorage.getItem('theme-id') || 'default');
   const activeTheme = availableThemes.find((th) => th.id === themeId)?.theme || defaultTheme;
@@ -103,10 +91,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const fastLoad = async () => {
       try {
-        const [language, port, closeToTray, autoStart,
-          showMainOnAutoStart, autoEnableProxyOnAutoStart, autoEnableSysProxyOnAutoStart, autoUpdateRules, cfConfig, ipv6Available, savedThemeId] = await Promise.all([
-          GetLanguage(), GetListenPort(), GetCloseToTray(), GetAutoStart(),
-          GetShowMainWindowOnAutoStart(), GetAutoEnableProxyOnAutoStart(), GetAutoEnableSysProxyOnAutoStart(), GetAutoUpdateRules(), GetCloudflareConfig(), GetIPv6Available(), GetTheme()
+        const [language, port, autoUpdateRules, cfConfig, ipv6Available, savedThemeId] = await Promise.all([
+          GetLanguage(), GetListenPort(), GetAutoUpdateRules(), GetCloudflareConfig(), GetIPv6Available(), GetTheme()
         ]);
         if (language) {
           localStorage.setItem('language', language as string);
@@ -115,8 +101,6 @@ const App: React.FC = () => {
             if (!tutorialDone) setShowTutorial(true);
           } catch { /* non-fatal */ }
         }
-        // settings.json 里的主题 ID 优先于 localStorage 缓存；后端存的是
-        // 主题 ID 本身，"dark" 这类历史默认值不在 availableThemes 里会被忽略。
         if (typeof savedThemeId === 'string' && availableThemes.some((th) => th.id === savedThemeId)) {
           setThemeId(savedThemeId);
           localStorage.setItem('theme-id', savedThemeId);
@@ -125,17 +109,11 @@ const App: React.FC = () => {
           ...prev,
           language: (language as string) || '',
           port: port ?? prev.port,
-          closeToTray: closeToTray ?? prev.closeToTray,
-          autoStart: autoStart ?? prev.autoStart,
-          showMainOnAutoStart: showMainOnAutoStart ?? prev.showMainOnAutoStart,
-          autoEnableProxyOnAutoStart: autoEnableProxyOnAutoStart ?? prev.autoEnableProxyOnAutoStart,
-          autoEnableSysProxyOnAutoStart: autoEnableSysProxyOnAutoStart ?? prev.autoEnableSysProxyOnAutoStart,
           autoUpdateRules: autoUpdateRules ?? prev.autoUpdateRules,
           cfConfig: cfConfig || prev.cfConfig,
           ipv6Available: typeof ipv6Available === 'boolean' ? ipv6Available : prev.ipv6Available,
         }));
       } catch { /* ignore */ }
-      setInitialized(true);
     };
     const slowLoad = async () => {
       try {

@@ -327,20 +327,60 @@ jobs:
           cd ..
           test -f app/src/main/assets/frontend/index.html
 
+      - name: Import release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ] || [ -z "${KEYSTORE_PASSWORD:-}" ] || [ -z "${KEY_ALIAS:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
+            echo "::warning::release signing secrets are incomplete - the APK/AAB will NOT be signed"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/signing"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.jks"
+          {
+            echo "SNISHAPER_KEYSTORE=$RUNNER_TEMP/signing/release.jks"
+            echo "SNISHAPER_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "SNISHAPER_KEY_ALIAS=$KEY_ALIAS"
+            echo "SNISHAPER_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "::notice::release keystore imported"
+
       - name: Build release APK + AAB
         run: |
           set -euo pipefail
           chmod +x gradlew
           sed -i '/^org\.gradle\.java\.home=/d' gradle.properties
-          ./gradlew --no-daemon --stacktrace lint test assembleRelease bundleRelease
+          ./gradlew --no-daemon --stacktrace signingInfo lint test assembleRelease bundleRelease
+
+      - name: Verify release signature
+        run: |
+          set -euo pipefail
+          apk="$(find app/build/outputs/apk/release -name '*.apk' | head -n1)"
+          test -n "$apk"
+          case "$(basename "$apk")" in
+            *unsigned*)
+              echo "::error::release APK is unsigned (signing secrets missing or invalid)"
+              exit 1
+              ;;
+          esac
+          apksigner="$(find "${ANDROID_SDK_ROOT}/build-tools" -maxdepth 2 -name apksigner | sort -V | tail -n1)"
+          "$apksigner" verify --verbose --print-certs "$apk"
+          echo "::notice::signature verified for $(basename "$apk")"
 
       - name: Stage release artifacts (flat layout for the publish job)
+        env:
+          VERSION: ${{ needs.bump.outputs.version }}
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp app/build/outputs/apk/release/*.apk dist/
-          cp app/build/outputs/bundle/release/*.aab dist/
-          cp app/libs/snishaper-core.aar dist/
+          cp app/build/outputs/apk/release/*.apk "dist/snishaper-droid-${VERSION}.apk"
+          cp app/build/outputs/bundle/release/*.aab "dist/snishaper-droid-${VERSION}.aab"
+          cp app/libs/snishaper-core.aar "dist/snishaper-core.aar"
+          ( cd dist && sha256sum * > SHA256SUMS.txt )
           ls -lh dist/
 
       - name: Upload release artifacts
@@ -407,8 +447,9 @@ jobs:
             echo "## 产物 / Assets"
             echo
             echo "- 界面：直接复用桌面端 React 前端（React 19 + MUI 9），与桌面版 UI 一致"
-            echo "- 构建：Gradle 9.8.0 / AGP 9.4.1 / JDK 25 / compileSdk 37 / minSdk 24"
+            echo "- 构建：AGP 9.5 / JDK 25 / compileSdk 37 / minSdk 24 / targetSdk 36"
             echo "- 内核：snishaper-core（gomobile AAR，arm64-v8a + armeabi-v7a + x86_64）"
+            echo "- 签名：APK / AAB 使用发布密钥签名（v1 + v2 + v3 + v4），安装包 SHA-256 见 \`SHA256SUMS.txt\`"
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
@@ -425,5 +466,6 @@ jobs:
             release-assets/*.apk
             release-assets/*.aab
             release-assets/snishaper-core.aar
+            release-assets/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

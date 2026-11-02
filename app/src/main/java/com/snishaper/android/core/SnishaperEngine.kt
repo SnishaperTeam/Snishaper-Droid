@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -122,7 +123,7 @@ object SnishaperEngine {
     // TUN (VpnService)
     // ------------------------------------------------------------------
 
-    suspend fun startTun(fd: Int, mtu: Int = 1500) = io {
+    suspend fun startTun(fd: Int, mtu: Int = DEFAULT_TUN_MTU) = io {
         requireApp().startTUN(fd, mtu)
         refreshStatus()
     }
@@ -131,6 +132,15 @@ object SnishaperEngine {
         requireApp().stopTUN()
         refreshStatus()
     }
+
+    fun tunMtu(): Int {
+        val instance = app ?: return DEFAULT_TUN_MTU
+        val raw = runCatching { instance.getTUNConfigJSON() }.getOrNull() ?: return DEFAULT_TUN_MTU
+        val value = runCatching { JSONObject(raw).optInt("mtu", DEFAULT_TUN_MTU) }.getOrDefault(DEFAULT_TUN_MTU)
+        return if (value in 576..9000) value else DEFAULT_TUN_MTU
+    }
+
+    const val DEFAULT_TUN_MTU = 1500
 }
 
 /** A routing decision reported by the Go engine. */

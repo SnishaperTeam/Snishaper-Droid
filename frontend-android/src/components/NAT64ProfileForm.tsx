@@ -3,7 +3,7 @@ import { Activity, Save } from '../lib/icons';
 import { AddNAT64Profile, UpdateNAT64Profile } from '../api/bindings';
 import { useTranslation } from '../i18n/I18nContext';
 import {
-  Box, Button, TextField, Stack, Typography, FormControlLabel, Switch,
+  Box, Button, TextField, Stack, Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 

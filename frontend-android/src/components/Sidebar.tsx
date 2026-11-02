@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Box, Drawer, IconButton, Tooltip, Typography, useColorScheme, useMediaQuery, useTheme } from '@mui/material';
-import { Sun, Moon } from '../lib/icons';
 import logoUrl from '../assets/logo.svg';
 import {
   Activity,
@@ -10,6 +9,8 @@ import {
   Shield,
   RefreshCcw,
   Globe,
+  Sun,
+  Moon,
   Antenna,
   Info,
   Bolt,

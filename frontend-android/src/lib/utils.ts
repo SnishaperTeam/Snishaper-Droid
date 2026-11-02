@@ -1,9 +1,3 @@
-export function formatSpeed(bytes: number) {
-  if (bytes < 1024) return `${Math.round(bytes)} B/s`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB/s`;
-  return `${Math.round(bytes / (1024 * 1024))} MB/s`;
-}
-
 export function parseLatencyMs(latency: unknown) {
   if (typeof latency === 'number') return latency;
   if (typeof latency !== 'string') return 0;
@@ -29,8 +23,4 @@ export function extractErrorMessage(err: any): string {
 
 export function splitListInput(value: string) {
   return value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
-}
-
-export function joinListInput(items: string[] | undefined) {
-  return (items || []).join('\n');
 }

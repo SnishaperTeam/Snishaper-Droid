@@ -6,9 +6,7 @@ import {
   GetECHProfiles, DeleteECHProfile, GetNAT64Profiles, DeleteNAT64Profile, TestNAT64Profile,
   GetMigrationServer, SetMigrationServer, TestMigration
 } from '../api/bindings';
-import {
-  Box, Typography, Button, IconButton, TextField, Grid, useColorScheme,
-} from '@mui/material';
+import { Box, Typography, Button, IconButton, TextField, Grid } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import Modal from '../components/Modal';
 import ECHProfileForm from '../components/ECHProfileForm';
@@ -19,7 +17,6 @@ import { SettingsCtx } from '../App';
 
 const Proxies: React.FC = () => {
   const { t } = useTranslation();
-  const { mode } = useColorScheme();
   const { cache } = useContext(SettingsCtx);
   const ipv6Available = cache.ipv6Available !== false;
   const [echProfiles, setEchProfiles] = useState<any[]>([]);

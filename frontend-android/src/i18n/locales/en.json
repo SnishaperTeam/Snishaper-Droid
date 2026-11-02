@@ -9,22 +9,16 @@
     "success": "Success",
     "failed": "Failed",
     "saving": "Saving...",
-    "status": "Status",
-    "view": "View",
     "edit": "Edit",
     "delete": "Delete",
     "apply": "Apply",
-  "export": "Export",
+    "export": "Export",
     "enabled": "Enabled",
-    "disabled": "Disabled",
     "unknown": "Unknown",
-    "ready": "Ready",
     "running": "Running",
     "stopped": "Stopped",
     "error": "Error",
-    "no_matches": "No options",
-    "clear": "Clear",
-    "expand_options": "Expand options"
+    "clear": "Clear"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -45,41 +39,39 @@
   "welcome": {
     "title": "Welcome to SniShaper",
     "subtitle": "Please select your preferred language to get started",
-    "select_language": "Select Language",
     "start": "Get Started"
   },
   "tutorial": {
     "skip": "Skip",
-    "back": "Back",
     "next": "Next",
     "done": "Finish",
     "open_wiki": "Open Wiki",
-    "s1": { "title": "Start the Proxy", "text": "Click the highlighted \"Start Proxy\" button to launch the local proxy." },
-    "s2": { "title": "System Proxy", "text": "Now click \"System Proxy\" so browser traffic is automatically routed through the proxy." },
-    "s3": { "title": "Use Rules", "text": "The Rules page ships with official rules applying MITM, TLS fragmentation, QUIC and more per site group. Create your own groups here; domains outside the rules are routed automatically via the GFWList." },
-    "s5": { "title": "TUN Mode", "text": "Enable TUN under \"Settings → TUN\" (admin rights required) when every app should use the proxy without extra configuration." },
-    "s6": { "title": "Learn More", "text": "Congrats on finishing the basics! For advanced features (CLI, DNS, Cloudflare IP selection, Evolution mode, etc.) visit the GitHub Wiki, and check the FAQ first when you run into problems." }
+    "s1": {
+      "title": "Start the Proxy",
+      "text": "Click the highlighted \"Start Proxy\" button to launch the local proxy."
+    },
+    "s3": {
+      "title": "Use Rules",
+      "text": "The Rules page ships with official rules applying MITM, TLS fragmentation, QUIC and more per site group. Create your own groups here; domains outside the rules are routed automatically via the GFWList."
+    },
+    "s5": {
+      "title": "TUN mode",
+      "text": "Settings → TUN adjusts the tunnel MTU. The TUN switch itself lives on the Dashboard and asks for the system VPN consent the first time."
+    },
+    "s6": {
+      "title": "Learn more",
+      "text": "That covers the basics. DNS, Cloudflare IP optimization and Evolution live in the sidebar; check the Wiki and the FAQ when something looks off."
+    }
   },
   "dashboard": {
     "title": "Home",
     "proxy_start": "Start Proxy",
     "proxy_stop": "Stop Proxy",
-    "sys_proxy": "System Proxy",
     "tun_status": "TUN",
-    "outbound_interface": "Outbound NIC",
-    "outbound_interface_smart": "Smart (recommended)",
-    "outbound_interface_hint": "Physical adapter bound for TUN outbound traffic. Smart mode skips virtual adapters and picks the physical owner of the lowest-metric default route.",
-    "outbound_interface_virtual": "virtual",
-    "outbound_interface_own": "proxy TUN",
-    "outbound_interface_default": "default route",
-    "outbound_interface_auto_pick": "auto",
-    "outbound_interface_applied": "Outbound NIC updated",
-    "outbound_interface_failed": "Failed to switch outbound NIC",
     "core_status": "Core Status",
     "run_status": "Run Status",
     "work_mode": "Mode",
     "listen_port": "Port",
-    "realtime_traffic": "Real-time Traffic",
     "download": "Download",
     "upload": "Upload",
     "conn_info": "Connection Info",
@@ -97,26 +89,12 @@
       "remind_later": "Remind Me Later"
     },
     "notifications": {
-      "tun_not_running": "TUN is not running",
       "tun_updated": "TUN status updated",
       "tun_failed": "TUN toggle failed",
       "proxy_toggle_failed": "Proxy operation failed",
-      "kill_process_failed": "Failed to kill process or restart",
-      "sys_proxy_failed": "System proxy operation failed",
       "tun_starting": "TUN is starting, please wait...",
       "tun_timeout": "TUN startup timed out. Check the logs.",
       "tun_stopped": "TUN path disabled."
-    },
-    "port_occupied": {
-      "title_unavailable": "Port Unavailable",
-      "title_occupied": "Port In Use",
-      "ok": "OK",
-      "kill_and_retry": "Kill Process & Retry",
-      "excluded_range": "Port {port} falls within Windows excluded port range ({name})",
-      "excluded_desc": "This port is reserved by the system (usually occupied by Hyper-V / WSL / Docker). There is no process to kill. Change the listening port in settings, or stop the related services and restart the proxy.",
-      "occupied_by": "Port {port} is in use by {name} (PID {pid})",
-      "occupied_desc": "The proxy cannot listen on this port. Killing the process will automatically retry starting the proxy. Make sure this is not an important program.",
-      "unknown_process": "Unknown process"
     }
   },
   "proxies": {
@@ -140,7 +118,6 @@
     "nat64_form_name": "Config Name",
     "nat64_form_prefix": "NAT64 Prefix",
     "migration_service": "Connection Migration Service",
-    "migration_service_title": "Migration API URL",
     "migration_service_desc": "Configure connection migration service URL",
     "migration_service_hint": "Enter migration service API URL",
     "test_connect": "Test Connection",
@@ -152,8 +129,7 @@
       "connect_success": "{name}: connected, latency {ms} ms",
       "connect_failed": "{name}: connection failed: {error}",
       "migration_required": "Please enter the migration service address",
-      "test_success": "Test successful",
-      "saved": "Saved"
+      "test_success": "Test successful"
     }
   },
   "ech_form": {
@@ -164,7 +140,6 @@
     "probe_success": "Successfully fetched ECH config snippet",
     "config_name": "Config Name",
     "name_placeholder": "e.g. Cloudflare Default",
-    "discovery_domain": "Discovery Domain",
     "domain_placeholder": "e.g. cloudflare.com",
     "doh_source": "DoH Source",
     "probe_and_resolve": "Probe & Resolve",
@@ -193,7 +168,6 @@
     "allow_names": "Allowed Names",
     "allow_suffixes": "Allowed Suffixes",
     "modes": {
-      "default": "Default",
       "strict": "Strict",
       "names": "Names",
       "suffixes": "Suffixes",
@@ -201,7 +175,6 @@
       "chain": "Chain"
     },
     "mode_descs": {
-      "default": "Standard system verification",
       "strict": "Strict real hostname check",
       "names": "Allow specific cert names",
       "suffixes": "Allow specific domain suffixes",
@@ -335,20 +308,15 @@
     "level_error": "ERR",
     "level_warn": "WRN",
     "level_info": "INF",
-    "capture": "Capture Logs",
-    "stop_capture": "Stop Capture",
     "resume": "Resume",
     "pause": "Pause",
     "scroll_top": "Scroll to Top",
     "clear": "Clear",
     "export": "Export",
     "search_placeholder": "Search keywords, domains, error codes...",
-    "capture_hint": "Log capture is disabled by default. Click 'Capture Logs' to start temporary collection and auto-scroll to the latest logs.",
     "no_logs": "No logs collected",
     "latest": "Latest",
-    "capture_disabled": "CAPTURE DISABLED",
     "capture_on": "CAPTURE ON",
-    "capture_off": "CAPTURE OFF",
     "buffer": "BUFFER: {count} LINES",
     "refresh_paused": "REFRESH PAUSED"
   },
@@ -357,24 +325,15 @@
     "traffic_flow": "Traffic Flow",
     "waiting_traffic": "Waiting for traffic...",
     "strategy": "Auto Routing Strategy",
-    "mode_switch": "Routing Mode Switch",
-    "modes": {
-      "off": "OFF",
-      "smart": "Smart"
-    },
     "gfwlist_check": "GFWList Status",
     "preloaded": "Preloaded {count} routing rules",
     "inactive": "Rule source inactive",
-    "save_apply": "Save & Apply",
     "features": "Features",
     "feature_smart": "Smart Mode",
     "feature_smart_desc": "Prioritizes detecting Cloudflare sites for ECH IP injection, otherwise uses TLS fragmentation to bypass SNI blocking.",
     "feature_priority": "Priority Logic",
     "feature_priority_desc": "Manually defined 'Rules' have the highest priority. Auto routing applies if no rules match.",
-    "notifications": {
-      "saved": "Routing settings saved",
-      "saved_desc": "New auto routing policy has been applied."
-    }
+    "android_desc": "The desktop smart-routing preset is unavailable on Android. Preloaded GFWList domains are handled inside the engine with TLS fragmentation; this page only reports status and live traffic."
   },
   "network": {
     "ipv6_title": "IPv6 Detection",
@@ -399,13 +358,7 @@
     },
     "tabs": {
       "general": "General",
-      "port": "Port",
-      "proxy": "Proxy",
-      "network": "Network",
       "security": "Security",
-      "appearance": "UI & Theme",
-      "startup": "Startup",
-      "logs": "Logs",
       "tun": "TUN Virtual NIC"
     },
     "language": {
@@ -419,62 +372,24 @@
       "dark": "Dark",
       "system": "System"
     },
-    "auto_start": {
-      "title": "Start on Boot",
-      "desc": "Run automatically in background after Windows login."
-    },
-    "auto_proxy": {
-      "title": "Auto-enable proxy on startup",
-      "desc": "Proxy will be enabled immediately after application starts."
-    },
-    "auto_sysproxy": {
-      "title": "Set system proxy on auto-enable",
-      "desc": "Also enable the system proxy when the proxy is auto-enabled at startup. Disable to start the local proxy service only."
-    },
     "auto_update_rules": {
       "title": "Auto-update rules",
       "desc": "Check GitHub for the latest rules on every start and merge them in. Rules are only added and updated; rules you edited yourself are never overwritten."
     },
-    "show_main": {
-      "title": "Show main window on startup",
-      "desc": "If disabled, the app will only run in the tray when auto-started."
-    },
-    "min_to_tray": {
-      "title": "Minimize to Tray",
-      "desc": "Hide to tray instead of exiting when clicking close."
-    },
     "port_title": "Proxy Port",
     "port_label": "Port",
     "port_desc": "HTTP and SOCKS5 share this port.",
-    "lan_sharing": {
-      "title": "LAN Sharing",
-      "desc": "Allow other devices in the local network to connect."
-    },
-    "tun_mode": {
-      "title": "TUN Mode",
-      "desc": "Force all traffic through TUN for global proxying."
-    },
     "ca_management": {
       "title": "CA Management",
       "export": "Export Root CA",
       "reset": "Reset Root CA",
       "reset_hint": "This will delete the current cert and generate a new one.",
       "reset_success": "Reset Successful",
-      "reset_success_desc": "New root certificate generated. Please reinstall it."
+      "export_empty": "There is no root certificate to export"
     },
     "certs_count": "{count} CERTS",
     "cf_pool": {
       "fetch_now": "Refresh IP Pool"
-    },
-    "logs": {
-      "title": "Log Files",
-      "desc": "Logs are saved to the log folder next to the app; each run creates a new timestamped file.",
-      "view": "View",
-      "clean": "Clean Up",
-      "current": "Current",
-      "empty": "No log files",
-      "no_content": "(empty)",
-      "clean_done": "Cleaned {count} old log file(s)"
     },
     "notifications": {
       "updated": "Settings updated",
@@ -493,57 +408,13 @@
     "select_language": "Select language",
     "select_theme": "Select theme",
     "ip_pool": "IP POOL ({count})",
-    "update_channel": {
-      "title": "Release Channel",
-      "desc": "Select the release channel to receive updates. Update checks are filtered by this channel.",
-      "alpha": "Alpha (Preview): fastest feature iteration, lowest stability, for early adopters",
-      "beta": "Beta (Testing): includes some new features, may contain defects, for test feedback",
-      "rc": "Release Candidate: close to the official release, only critical fixes",
-      "stable": "Stable: official releases only, recommended for most users"
-    },
-    "download_source": {
-      "title": "Download Source",
-      "desc": "Pick the download source for update packages. Smart mode measures every mirror and uses the fastest; a specific mirror is tried first, falling back to direct and the other mirrors.",
-      "direct": "Direct",
-      "smart": "Smart (auto-select fastest)",
-      "custom": "Custom",
-      "custom_placeholder": "https://your-mirror.example.com/",
-      "measure": "Measure",
-      "measuring": "Measuring...",
-      "unreachable": "unreachable"
-    },
-    "tun": {
-      "outbound_iface": {
-        "title": "Outbound interface",
-        "desc": "Which NIC carries TUN outbound traffic. By default it is chosen automatically from the system default route, avoiding VMware / Hyper-V / container virtual adapters.",
-        "auto": "Smart (automatic)",
-        "physical": "physical",
-        "virtual": "virtual",
-        "default_route": "default route",
-        "in_use": "in use"
-      },
-      "outbound_exclude": {
-        "label": "Excluded interfaces (optional)",
-        "placeholder": "VMware*,vEthernet*",
-        "hint": "Select or type interface names. Separate multiple names with commas. Wildcards like VMware* are supported.",
-        "error": "⚠️ Warning: Input contains unknown interface names or names without a wildcard (*). Please check spelling or add *."
-      },
-      "stack": {
-        "title": "TUN network stack",
-        "desc": "gvisor has the widest compatibility; mixed offloads TCP to the system; system is kernel-mode with the lowest overhead.",
-        "gvisor": "gvisor (userspace)",
-        "mixed": "mixed",
-        "system": "system (kernel)"
-      },
-      "adapter_name": {
-        "title": "Virtual adapter name",
-        "desc": "Name of the TUN virtual adapter. Leave empty to use the default name SniShaper."
-      },
-      "route_exclude": {
-        "title": "Excluded networks",
-        "desc": "These networks bypass the tunnel and follow the system default route. Comma-separated CIDRs."
-      }
-    }
+    "mtu_title": "TUN MTU",
+    "mtu_desc": "Tunnel maximum transmission unit, applied the next time TUN starts. Try 1280 when the link misbehaves.",
+    "mtu_label": "MTU",
+    "mtu_invalid": "MTU must be between 576 and 9000",
+    "tun_hint": "Android builds the tunnel through the system VpnService, so the VPN consent dialog appears on first start. The interface address and DNS come from the 198.18.0.0/16 range and need no manual setup.",
+    "certs_empty": "No installed certificate",
+    "ip_pool_empty": "IP pool is empty"
   },
   "evolution": {
     "title": "Evolution Mode",
@@ -610,7 +481,6 @@
   "about": {
     "title": "About SniShaper",
     "version": "Version",
-    "creator": "Creator",
     "contributors": "Contributors",
     "maintainers": "Maintainers",
     "website": "Official Website",
@@ -632,64 +502,21 @@
     "qq_group": "QQ Group",
     "qq_group_desc": "Join the group chat to talk directly with SniShaper and FlowWeaver users and developers.",
     "join_group": "Join Group",
-    "check_update": "Check for Updates",
-    "checking": "Checking...",
-    "update_available": "Update Available",
-    "update_available_desc": "Latest version: {version}\nDownload now?",
-    "up_to_date": "Up to Date",
-    "up_to_date_desc": "Current version {version} is the latest.",
-    "dev_version": "Development Version",
-    "dev_version_desc": "Your version ({version}) is newer than the latest release ({latestVersion}), may contain unreleased features.",
-    "check_failed": "Check Failed",
-    "check_failed_desc": "Unable to connect to update server, please try again later.",
-    "network_timeout": "Network connection timed out. Please check your network or try again later.",
-    "connection_refused": "Connection refused. The proxy server may be unavailable.",
-    "dns_error": "DNS resolution failed. Please check your DNS settings.",
-    "proxy_error": "Proxy configuration error. Please check your system proxy settings.",
     "rights_reserved": "All rights reserved, except as granted under the AGPLv3.",
     "made_with": "Made with",
-    "by_community": "by the SniShaper community",
-    "latest_beta": "Latest Beta",
-    "actions_build": "Actions build artifact",
-    "no_release_found": "No release in this channel",
-    "no_release_found_desc": "No version is available in the current channel yet. Try switching channels or retry later.",
-    "choose_download": "Choose Download Method",
-    "choose_download_desc": "Select the installation resource to download",
-    "no_assets": "No resources available",
-    "no_assets_desc": "This release does not provide .exe or .7z resources. Please download manually from GitHub.",
-    "open_github": "Open GitHub",
-    "asset_exe": "Installer (.exe)",
-    "asset_7z": "Portable Archive (.7z)",
-    "asset_size": "Size",
-    "download": "Download",
-    "downloading": "Downloading",
-    "download_done": "Download Complete",
-    "install": "Install",
-    "install_confirm": "Download and install?",
-    "install_confirm_7z": "The archive will be extracted and overwrite the app directory. The app will close and restart automatically. Continue?",
-    "install_started": "Installer launched, follow the prompts to complete installation.",
-    "install_7z_started": "Preparing update, the app will close and restart automatically.",
-    "install_failed": "Install Failed",
-    "download_failed": "Download Failed",
-    "rate_limited": "GitHub API rate limit exceeded, please retry later.",
-    "api_error": "Failed to fetch version info from GitHub, please retry later.",
-    "sevenzip_missing": "7-Zip not found. Install 7-Zip and retry, or choose the .exe installer instead.",
-    "dir_not_writable": "The application directory is not writable, .7z overwrite update is unavailable. Use the .exe installer instead.",
-    "extract_failed": "Failed to extract the update package, please download again and retry.",
-    "bad_archive": "The update package is invalid, please download again and retry.",
     "channel_alpha": "Alpha",
     "channel_beta": "Beta",
     "channel_rc": "RC",
     "channel_stable": "Stable",
-    "restart_now": "Restart Now",
-    "restart_later": "Later",
-    "restart_to_update": "Restart to Update",
-    "restart_prompt_desc": "The new package has been downloaded. Restart now to apply the update?"
-  },
-  "window": {
-    "minimize": "Minimize",
-    "maximize_restore": "Maximize / Restore",
-    "close": "Close"
+    "build_info": "Build info",
+    "app_version": "App version",
+    "core_version": "Core version",
+    "channel": "Release channel",
+    "go_version": "Go runtime",
+    "platform": "Build platform",
+    "releases": "GitHub Releases",
+    "releases_desc": "Download the latest APK",
+    "open_releases": "Get the APK"
   },
   "modal": {
     "close_dialog": "Close dialog"

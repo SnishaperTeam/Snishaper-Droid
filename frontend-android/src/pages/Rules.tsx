@@ -370,7 +370,7 @@ const Rules: React.FC = () => {
           <Button type="button" onClick={() => setIsModalOpen(false)} variant="outlined" size="small">{t('common.cancel')}</Button>
           <Button type="submit" form="rule-form" variant="contained" color="primary" size="small" startIcon={<Bolt size={16} />}>{editingGroup ? t('common.save') : t('common.save')}</Button>
         </>}>
-        <RuleForm initialData={editingGroup} onSuccess={() => { setIsModalOpen(false); loadData(); }} onCancel={() => setIsModalOpen(false)} />
+        <RuleForm initialData={editingGroup} onSuccess={() => { setIsModalOpen(false); loadData(); }} />
       </Modal>
 
       <Modal isOpen={Boolean(pendingDeleteGroup)} onClose={() => setPendingDeleteGroup(null)} title={t('rules.delete_rule')} subtitle={t('rules.delete_hint')} maxWidth="28rem"

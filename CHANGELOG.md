@@ -8,35 +8,43 @@ project adheres to the desktop SniShaper release cadence (`alpha` / `beta` / `rc
 
 ### Added
 
-- Material 3 Compose UI with the 9 desktop screens (Dashboard, Proxies, Rules, Routing,
-  DNS, Evolution, Logs, Settings, About), ☰ modal navigation drawer persisted in DataStore,
-  6 desktop color schemes × light/dark/system, and zh/en/ru resources.
-- `SnishaperEngine` Kotlin singleton bridging the gomobile AAR: lifecycle, status/stats,
-  ring-buffer logs, route events, configuration CRUD, import/export, evolution, VpnService TUN.
-- Independent `gomobile/` Go module producing the CA-free `snishaper-core.aar`
-  (arm64-v8a + armeabi-v7a + x86_64, `-androidapi 24`, `-tags with_gvisor`, stripped).
-- Rule sanitization for every config entry point (startup load / import / CRUD /
-  AutoRouter forced to `mode:""` / evolution apply allow-list).
-- CA-free default rule set generated from the desktop rules (222 site groups;
-  77 CA-dependent rules converted from `mitm`/`quic` to `tls-rf`).
-- Build/test scripts: `build-aar.ps1`, `verify-aar.ps1`, `dev-env.ps1`,
-  `mumu-status.ps1`, `smoke-test.ps1`.
-- Android CI and release workflows with AAR build, contract verification,
-  `lint/test/assembleRelease` and APK/AAB artifacts.
+- Signed release pipeline: `signingConfigs` reads `keystore.properties` or the
+  `SNISHAPER_KEYSTORE*` environment variables, signs with v2 + v3 + v4, and the new
+  `scripts/init-keystore.ps1` generates the PKCS12 keystore (RSA 4096, 30 years).
+- `scripts/build-apk.ps1`: end-to-end local release build (missing AAR / frontend bundle →
+  `assembleRelease`/`bundleRelease` → `apksigner verify` → `build/dist/` with `SHA256SUMS.txt`).
+- `:app:signingInfo` task reporting the resolved keystore, alias and schemes.
+- Release workflow imports the keystore from repository secrets, gates on `apksigner verify`
+  and publishes `SHA256SUMS.txt` alongside the APK/AAB/AAR.
+- `GetBuildInfo` bridge method; the About page now shows app version, core version, release
+  channel, Go runtime and build platform.
+- Dashboard traffic counters (down / up) from the engine stats payload.
+- Configurable TUN MTU in Settings, applied by `TunVpnService` when the tunnel starts.
+
+### Changed
+
+- Frontend de-desktop pass: Settings keeps only port, language, appearance, theme, rule
+  auto-update, TUN MTU, certificates, IPv6 and the Cloudflare IP pool.
+- Dashboard drops the outbound-NIC picker and the port-occupant kill dialog.
+- About drops the in-app updater (7z/exe download, update channel, pending update) and links
+  to GitHub Releases instead.
+- Logs page streams the engine ring buffer continuously; the capture start/stop switch is gone.
+- Routing page is read-only status plus live flow (the desktop smart-routing switch cannot be
+  applied on Android and always failed).
+- `GetBuildInfo` wired into the bridge; the unused upstream / fragment / auto-routing-config /
+  migration-enabled / import / export-cert bridge branches removed.
+- Documents (README, build guides, changelog) realigned with the restored CA surface.
 
 ### Removed
 
-- **All CA functionality**: certificate generation/storage/export/regeneration/uninstall,
-  Android trust-store and KeyStore interaction, the `certmanager` package from the AAR,
-  and every CA API / UI entry.
-- Rule modes `mitm`, `quic` and `migration`, rule-level `cert_verify`, `sni_fake` and
-  rule-level ECH.
-- Smart routing (Auto Routing) strategy controls; the Routing page keeps the traffic-flow
-  and GFWList status views only.
-- Desktop-only integrations that have no Android counterpart (system proxy registry,
-  tray, window controls, autostart, in-app updater, kill-port).
+- Desktop-only controls and their bindings: tray, autostart (and its three sub-toggles),
+  system proxy, update channel, download source + speed measurement, NIC selection and
+  exclusion lists, TUN stack / adapter name / route exclude, log file list.
+- Unused frontend modules (`components/ui/Autocomplete.tsx`, `lib/useClickOutside.ts`),
+  dead i18n keys across zh/en/ru, and the unused `onCancel` prop of `RuleForm`.
 
 ### Notes
 
-- Core engine pinned to `snishaper-core v0.4.0`; `minSdk = 24`, `targetSdk = compileSdk = 36`.
-- Version aligned with the desktop app: `1.29.x`.
+- Core engine pinned to `snishaper-core v0.8.4`; `minSdk = 24`, `compileSdk = 37.2`,
+  `targetSdk = 36`.
+- Version aligned with the desktop app: `1.30.x`.

@@ -21,7 +21,6 @@ import { toast } from '../lib/toast';
 interface RuleFormProps {
   initialData?: any;
   onSuccess: () => void;
-  onCancel: () => void;
 }
 
 const FRAG_DEFAULTS = { num_records: 4, num_segments: 1, interval_ms: 50, mod_minor_ver: true, oob: false };
@@ -73,7 +72,7 @@ const normalizeCertVerify = (value: any) => {
   return next;
 };
 
-const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess, onCancel }) => {
+const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess }) => {
   const { t } = useTranslation();
   const { cache } = useContext(SettingsCtx);
   const ipv6Available = cache.ipv6Available !== false;

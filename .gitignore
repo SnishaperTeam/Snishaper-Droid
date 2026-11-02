@@ -39,3 +39,9 @@ frontend-android/node_modules/
 # are kept locally for development but are NOT published in this repository.
 /docs/analysis/
 /docs/android-bridge-api.md
+
+# Release signing material (scripts/init-keystore.ps1)
+keystore.properties
+keystore/
+*.jks
+*.keystore
