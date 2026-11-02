@@ -21,11 +21,11 @@ import (
 const (
 	// engineVersion is shown on the About / Settings pages. The release
 	// workflow's bot commits bumps here (see .github/workflows/release.yml).
-	engineVersion = "1.29.0"
+	engineVersion = "1.30.0"
 	// releaseChannel is the distribution channel shown on the About page
 	// (stable | alpha | beta | rc). The release bot commits it together with
 	// the version bump; "release" dispatches are written as "stable".
-	releaseChannel = "stable"
+	releaseChannel = "alpha"
 	// coreVersion is the pinned snishaper-core release (see go.mod).
 	coreVersion = "v0.8.4"
 

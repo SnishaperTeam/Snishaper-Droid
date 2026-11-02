@@ -34,7 +34,7 @@ android {
         // dispatch (see .github/workflows/release.yml). versionCode derives
         // from versionName so sideload installers (MIUI et al.) always see a
         // monotonic code; prerelease suffixes keep the base code.
-        versionName = "1.29.0"
+        versionName = "1.30.0"
         versionCode = (versionName ?: "0.0.0").substringBefore('-').split(".").let { parts ->
             (parts.getOrElse(0) { "0" }.toIntOrNull() ?: 0) * 1_000_000 +
                 (parts.getOrElse(1) { "0" }.toIntOrNull() ?: 0) * 1_000 +
