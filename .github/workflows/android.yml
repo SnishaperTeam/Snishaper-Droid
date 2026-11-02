@@ -249,8 +249,8 @@ jobs:
           echo "--- gradle-wrapper.properties ---"
           grep -E '^distributionUrl' gradle/wrapper/gradle-wrapper.properties
 
-      # ----- CA-free AAR (gomobile bind) ------------------------------------
-      - name: Build CA-free AAR
+      # ----- AAR (gomobile bind, certmanager CA included) --------------------
+      - name: Build AAR
         run: |
           set -euo pipefail
           mkdir -p app/libs
@@ -267,13 +267,13 @@ jobs:
           cd ..
           ls -lh app/libs/snishaper-core.aar
 
-      - name: Verify AAR contract (CA-free / ABI / minSdk / 16KB)
+      - name: Verify AAR contract (ABI / minSdk / 16KB)
         run: python3 scripts/verify_aar.py
 
       # ----- Frontend (reused desktop React bundle) --------------------------
       # The Android UI is the desktop React frontend (React 19 + MUI 9) reused
       # verbatim: frontend-android/ builds with vite straight into
-      # app/src/main/assets/frontend/ (APK assets). CA-free (verified below).
+      # app/src/main/assets/frontend/ (APK assets).
       - name: Setup Node (frontend build)
         uses: actions/setup-node@v7
         with:
@@ -281,16 +281,15 @@ jobs:
           cache: npm
           cache-dependency-path: frontend-android/package-lock.json
 
-      - name: Build frontend bundle (CA-free)
+      - name: Build frontend bundle
         run: |
           set -euo pipefail
           cd frontend-android
           npm install --no-audit --no-fund
           npx vite build
           cd ..
-          # CA guard + relative-path guard (same checks as scripts/build-frontend.ps1)
+          # relative-path guard (same check as scripts/build-frontend.ps1)
           test -f app/src/main/assets/frontend/index.html
-          ! grep -rqE 'InstallCA|ExportCert|RegenerateCert|GetCACertPEM|GetCACertPath|GetCAInstallStatus|GetInstalledCerts|OpenCertDir|OpenCAFile|UninstallCert' app/src/main/assets/frontend/assets/
           echo "--- frontend bundle ---"
           du -sh app/src/main/assets/frontend/assets
 

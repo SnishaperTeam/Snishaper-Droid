@@ -294,7 +294,7 @@ jobs:
           sed -i 's#repo\.huaweicloud\.com/gradle#services.gradle.org/distributions#g' \
             gradle/wrapper/gradle-wrapper.properties
 
-      - name: Build and verify CA-free AAR
+      - name: Build and verify AAR
         run: |
           set -euo pipefail
           mkdir -p app/libs
@@ -318,7 +318,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend-android/package-lock.json
 
-      - name: Build frontend bundle (CA-free)
+      - name: Build frontend bundle
         run: |
           set -euo pipefail
           cd frontend-android
@@ -326,7 +326,6 @@ jobs:
           npx vite build
           cd ..
           test -f app/src/main/assets/frontend/index.html
-          ! grep -rqE 'InstallCA|ExportCert|RegenerateCert|GetCACertPEM|GetCACertPath|GetCAInstallStatus|GetInstalledCerts|OpenCertDir|OpenCAFile|UninstallCert' app/src/main/assets/frontend/assets/
 
       - name: Build release APK + AAB
         run: |
@@ -386,9 +385,9 @@ jobs:
           {
             echo "# Snishaper-Droid ${VERSION}（Android）"
             echo
-            echo "> ⚠ **已移除 CA 功能**：Android 版不包含证书生成、MITM 拦截、"
-            echo "> 系统证书安装/信任库写入等能力；规则仅支持 TLS-RF / Transparent，"
-            echo "> 导入桌面配置时会自动清洗 mitm/quic 规则。"
+            echo "> 🔐 **CA 功能已恢复**：支持证书生成 / 重生成 / 导出，规则模式"
+            echo "> mitm / quic / migration 与规则级 cert_verify 完整可用；系统信任库"
+            echo "> 安装需要已 root 的设备（su + certutil）。"
             echo
             if [ "$CHANNEL" != "release" ]; then
               echo "> 🚧 **预发布版本（${CHANNEL}）**：仅供测试，不建议日常使用。"

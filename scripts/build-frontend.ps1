@@ -19,8 +19,9 @@
     ../app/src/main/assets/frontend, so only the built bundle is emitted into
     the assets folder.
 
-    frontend-android/src is the ported copy of SniShaper-main/frontend/src with
-    the CA surface removed.
+    frontend-android/src is the ported copy of SniShaper-main/frontend/src
+    (CA/cert UI included, Android adaptations where the desktop bridge is
+    not dispatched).
 
 .PARAMETER SkipInstall
     Skip `npm install` (useful when node_modules is already present).
@@ -112,27 +113,8 @@ if ($leaked) {
         (($leaked | ForEach-Object { $_.FullName }) -join ', '))
 }
 
-# CA guard: the shipped bundle must not contain any CA entry point.
-$caPatterns = @(
-    "InstallCA", "ExportCert", "RegenerateCert", "GetCACertPEM", "GetCACertPath",
-    "GetCAInstallStatus", "GetInstalledCerts", "OpenCertDir", "OpenCAFile", "UninstallCert"
-)
-$caHits = New-Object 'System.Collections.Generic.List[string]'
-foreach ($file in Get-ChildItem -Recurse -File $builtAssetsDir -Include *.js) {
-    $content = Get-Content -LiteralPath $file.FullName -Raw
-    foreach ($pattern in $caPatterns) {
-        if ($content -match [regex]::Escape($pattern)) {
-            $caHits.Add("$($file.Name): $pattern")
-        }
-    }
-}
-if ($caHits.Count -gt 0) {
-    throw "CA API names found in the built frontend bundle: $($caHits -join ', ')"
-}
-
 $totalSize = (Get-ChildItem -Recurse -File $builtAssetsDir | Measure-Object -Property Length -Sum).Sum
 Write-Host ""
 Write-Host "[build-frontend] ==== done ===="
 Write-Host ("[build-frontend] index.html : {0}" -f $indexHtml)
 Write-Host ("[build-frontend] assets      : {0:N0} bytes ({1:N2} MB)" -f $totalSize, ($totalSize / 1MB))
-Write-Host "[build-frontend] CA guard OK : no CA API names in the bundle"
