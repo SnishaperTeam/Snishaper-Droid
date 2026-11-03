@@ -156,8 +156,9 @@ pwsh -File scripts/smoke-test.ps1
 
 Manual checklist: no crash / no `FATAL EXCEPTION`; the engine starts and stops; TUN triggers the system VPN
 consent; the CA status card renders on the Dashboard; the ☰ drawer toggles; Settings only lists port, language,
-appearance, theme, rule auto-update, TUN MTU, certificates, IPv6 and the CF IP pool; the Logs page streams the
-engine ring buffer with pause/clear/export.
+appearance, theme, rule auto-update, TUN MTU, certificates, IPv6 and the CF IP pool and named CDN pools; the Logs page
+streams the engine ring buffer with pause/clear/export/diagnostics; connections, profiles, match explanation and the
+migration report all render.
 
 ## 7. AAR verification
 

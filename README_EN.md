@@ -61,7 +61,13 @@ Join the QQ group **[Snishaper and FlowWeaver building](https://qm.qq.com/q/GtBO
 - **Rule evolution**: direct / TCPing / TLS-fragment probing (domain-fronting / ECH / QUIC tests are shown but their rules cannot be applied on Android).
 - **VpnService TUN (Beta)**: Kotlin `VpnService` → Go `sing-tun` `FileDescriptor` + core `singtun.Handler` + gvisor stack; no root.
 - **Import / export**: desktop-compatible format, sanitized on import for Android limits.
-- **React + MUI UI**: the same frontend bundle as the desktop build (9 screens; desktop-only tray, autostart, system-proxy, update-channel and NIC-picker controls removed), **☰** drawer with persisted visibility, 6 color schemes × light/dark/system, zh / en / ru.
+- **Live connections**: host, destination, matched rule, mode and byte counters, refreshed every 2.5 s with search.
+- **Match explanation**: run a domain through the real matching pipeline and inspect the final mode, rule, DNS policy, upstream and candidates.
+- **Configuration profiles**: named snapshots of settings + rules with create / rename / duplicate / switch / import / export; switching stops the proxy first.
+- **Named CDN IP pools**: manage pools by name and bind them per rule; the Cloudflare pool keeps automatic fetch and health checks.
+- **Diagnostics bundle**: one tap packages status, redacted settings and logs, shared through the system sheet.
+- **Startup migration report**: the Dashboard shows configuration migrations, warnings and backup paths.
+- **React + MUI UI**: the same frontend bundle as the desktop build (11 screens; desktop-only tray, autostart, system-proxy, update-channel and NIC-picker controls removed), **☰** drawer with persisted visibility, 6 color schemes × light/dark/system, zh / en / ru.
 - **Foreground service**: persistent notification while the proxy runs.
 
 ---

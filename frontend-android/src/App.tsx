@@ -30,6 +30,8 @@ const Proxies = lazy(() => import('./pages/Proxies'));
 const Rules = lazy(() => import('./pages/Rules'));
 const Routing = lazy(() => import('./pages/Routing'));
 const Logs = lazy(() => import('./pages/Logs'));
+const Connections = lazy(() => import('./pages/Connections'));
+const Profiles = lazy(() => import('./pages/Profiles'));
 const Settings = lazy(() => import('./pages/Settings'));
 const DNS = lazy(() => import('./pages/DNS'));
 const About = lazy(() => import('./pages/About'));
@@ -84,6 +86,8 @@ const App: React.FC = () => {
     void import('./pages/DNS');
     void import('./pages/Evolution');
     void import('./pages/Logs');
+    void import('./pages/Connections');
+    void import('./pages/Profiles');
     void import('./pages/Settings');
     void import('./pages/About');
   }, []);
@@ -218,6 +222,8 @@ const AppRoutes: React.FC<{ settingsCache: SettingsCache, updateSettingsCache: a
             <Route path="/dns" element={<DNS />} />
             <Route path="/evolution" element={<Evolution />} />
             <Route path="/logs" element={<Logs />} />
+            <Route path="/connections" element={<Connections />} />
+            <Route path="/profiles" element={<Profiles />} />
             <Route path="/settings" element={<Settings cache={settingsCache} onCacheUpdate={updateSettingsCache} currentThemeId={themeId} onThemeChange={onThemeChange} />} />
             <Route path="/about" element={<About />} />
           </Routes>

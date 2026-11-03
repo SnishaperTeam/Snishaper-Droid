@@ -59,6 +59,8 @@ type App struct {
 	ipv6CheckedAt time.Time
 	ipv6Probing   bool
 
+	migrationJSON string
+
 	listenerMu sync.RWMutex
 	listener   Listener
 
@@ -123,10 +125,12 @@ func (a *App) Start() (err error) {
 	a.mu.Unlock()
 
 	rm := proxy.NewRuleManager(a.settingsPath, a.rulesPath, proxy.WithLogger(corelog.Func(a.logf)))
-	if err := rm.LoadConfig(); err != nil {
-		a.setLastError(err.Error())
-		return fmt.Errorf("load config: %w", err)
+	report, loadErr := rm.LoadConfigWithMigration()
+	if loadErr != nil {
+		a.setLastError(loadErr.Error())
+		return fmt.Errorf("load config: %w", loadErr)
 	}
+	a.setMigrationReport(report)
 	if err := a.sanitizeConfigLocked(rm); err != nil {
 		a.setLastError(err.Error())
 		return fmt.Errorf("sanitize config: %w", err)
@@ -143,7 +147,7 @@ func (a *App) Start() (err error) {
 		proxy.WithLogger(corelog.Func(a.logf)),
 	)
 	srv.SetLogCallback(a.appendLog)
-	srv.UpdateCloudflareIPPool(rm.GetCloudflareConfig().PreferredIPs)
+	a.applyIPPoolsLocked(rm, srv)
 
 	// The CA manager generates the local root (dataDir/certs) and feeds the
 	// MITM/QUIC paths; InstallCA publishes it into the Android system store.
@@ -278,7 +282,7 @@ func (a *App) startProxyLocked() error {
 	if err := srv.SetListenAddr(addr); err != nil {
 		return fmt.Errorf("set listen address: %w", err)
 	}
-	srv.UpdateCloudflareIPPool(rm.GetCloudflareConfig().PreferredIPs)
+	a.applyIPPoolsLocked(rm, srv)
 	if err := srv.Start(); err != nil {
 		a.setLastError(err.Error())
 		return fmt.Errorf("start proxy: %w", err)

@@ -26,6 +26,10 @@ updates:
       frontend-deps:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "@iconify/react"
+      - dependency-name: "@iconify-icons/material-symbols"
+      - dependency-name: "@iconify-icons/mdi"
 
   # Gradle (Android app): check once per day, grouped.
   - package-ecosystem: gradle

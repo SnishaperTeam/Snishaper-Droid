@@ -169,7 +169,8 @@ pwsh -File scripts/smoke-test.ps1
 
 - [ ] App 启动无崩溃 / 无 `FATAL EXCEPTION`
 - [ ] Dashboard 可启动 / 停止代理引擎，TUN 可拉起系统 VPN 授权，CA 状态卡正常显示
-- [ ] 顶部 ☰ 可开关侧边栏，9 项顺序与桌面一致
+- [ ] 顶部 ☰ 可开关侧边栏，11 项顺序与桌面一致
+- [ ] 实时连接、配置档案、规则解释、多 CDN 优选池、诊断包可用
 - [ ] 设置页只有端口、语言、外观、主题、自动更新规则、TUN MTU、证书、IPv6、CF IP 池
 - [ ] 规则编辑支持 mitm / tls-rf / quic / transparent / migration 全部模式
 - [ ] 日志页常驻显示引擎环形缓冲，暂停 / 清空 / 导出可用

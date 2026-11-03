@@ -18,7 +18,8 @@
     "running": "运行中",
     "stopped": "已停止",
     "error": "错误",
-    "clear": "清除"
+    "clear": "清除",
+    "close": "关闭"
   },
   "sidebar": {
     "dashboard": "仪表盘",
@@ -34,7 +35,9 @@
     "nav_label": "主导航",
     "menu_aria": "打开导航菜单",
     "dark_mode_aria": "切换到深色模式",
-    "light_mode_aria": "切换到浅色模式"
+    "light_mode_aria": "切换到浅色模式",
+    "connections": "实时连接",
+    "profiles": "配置文件"
   },
   "welcome": {
     "title": "欢迎使用 SniShaper",
@@ -95,6 +98,13 @@
       "tun_starting": "TUN 启动中，请稍候...",
       "tun_timeout": "TUN 启动超时，请查看日志。",
       "tun_stopped": "已关闭 TUN 路径。"
+    },
+    "migration_report": {
+      "title": "配置迁移报告",
+      "changes": "已应用的修改",
+      "warnings": "警告",
+      "errors": "错误",
+      "backups": "原配置备份"
     }
   },
   "proxies": {
@@ -235,7 +245,9 @@
       "prefix_label": "前缀：{prefix}",
       "website_placeholder": "例如：google.com",
       "placeholder_mapped": "例如: github-com.mapped",
-      "manual_ech": "手动配置 ECH"
+      "manual_ech": "手动配置 ECH",
+      "ip_pool_select": "选择命名优选池",
+      "ip_pool_count": "{count} 个 IP"
     },
     "modes": {
       "mitm": "修改 SNI 或注入 ECH 配置",
@@ -273,7 +285,8 @@
       "others": "其他",
       "default_group": "默认",
       "cf_ip_pool": "CF IP POOL",
-      "doh_dynamic": "DOH DYNAMIC"
+      "doh_dynamic": "DOH DYNAMIC",
+      "ip_pool_name": "IP POOL: {name}"
     },
     "notifications": {
       "deleted": "规则已删除",
@@ -301,7 +314,29 @@
     "update_latest_detail": "远端更新于 {date} · {hash}",
     "update_applied_detail": "本地 {local} → 远程 {remote} · 远端更新于 {date}",
     "update_applied": "规则已更新：新增 {added} 条，修改 {changed} 条，移除 {removed} 条",
-    "update_failed": "规则更新失败"
+    "update_failed": "规则更新失败",
+    "explain_button": "测试域名",
+    "explain_title": "规则匹配测试",
+    "explain_subtitle": "模拟一个域名会被如何处理；结果是预测，不是真实连接的决策记录。",
+    "explain_host_label": "域名",
+    "explain_process_label": "进程（可选）",
+    "explain_run": "测试",
+    "explain_running": "测试中…",
+    "explain_simulated_badge": "模拟结果",
+    "explain_host": "域名",
+    "explain_mode": "模式",
+    "explain_source": "来源",
+    "explain_rule": "匹配规则",
+    "explain_upstream": "上游",
+    "explain_dns": "DNS 模式",
+    "explain_sni_fake": "Fake SNI",
+    "explain_downgraded": "全局透明模式已将该 MITM 规则降级为直连，以避免证书错误。",
+    "explain_candidates": "候选规则（按优先级）",
+    "filter_source_aria": "筛选来源",
+    "source_all": "全部",
+    "source_default": "默认",
+    "source_override": "已修改",
+    "source_user": "自定义"
   },
   "logs": {
     "title": "系统日志",
@@ -318,7 +353,11 @@
     "latest": "最新",
     "capture_on": "CAPTURE ON",
     "buffer": "BUFFER: {count} LINES",
-    "refresh_paused": "REFRESH PAUSED"
+    "refresh_paused": "REFRESH PAUSED",
+    "diag_button": "诊断包",
+    "diag_success": "诊断包已导出",
+    "diag_failed": "诊断包导出失败",
+    "diag_exporting": "导出中…"
   },
   "routing": {
     "title": "自动分流",
@@ -414,7 +453,21 @@
     "mtu_invalid": "MTU 需在 576 - 9000 之间",
     "tun_hint": "Android 的隧道由系统 VpnService 建立，首次启动会弹出 VPN 授权对话框；接口地址与 DNS 由 198.18.0.0/16 网段自动下发，无需手工配置。",
     "certs_empty": "暂无已安装证书",
-    "ip_pool_empty": "IP 池为空"
+    "ip_pool_empty": "IP 池为空",
+    "ip_pools": {
+      "title": "多 CDN 优选池",
+      "subtitle": "为不同 CDN 手动维护命名的优选 IP 池，规则编辑页可按名称选用",
+      "empty": "暂无自定义优选池，使用下方表单添加",
+      "name_label": "池名称",
+      "ips_label": "IP 列表（逗号/空格/换行分隔）",
+      "add": "添加",
+      "added": "优选池 {name} 已添加",
+      "removed": "优选池 {name} 已移除",
+      "ip_count": "{count} 个 IP",
+      "invalid_name": "名称无效或为保留名 cloudflare",
+      "no_ips": "请至少填写一个 IP 地址",
+      "duplicate_name": "已存在同名优选池"
+    }
   },
   "evolution": {
     "title": "进化模式",
@@ -523,5 +576,54 @@
   },
   "toast": {
     "close_notification": "关闭提示"
+  },
+  "connections": {
+    "title": "实时连接",
+    "count": "{n} 条连接",
+    "search_placeholder": "搜索主机 / 规则 / 模式",
+    "empty": "暂无活动连接",
+    "no_match": "没有匹配的连接",
+    "col_host": "主机",
+    "col_dst": "目标地址",
+    "col_rule": "规则",
+    "col_mode": "模式",
+    "col_up": "上传",
+    "col_down": "下载",
+    "col_age": "时长",
+    "col_state": "状态",
+    "state_active": "活动",
+    "copy_detail": "复制连接详情",
+    "age_seconds": "{s} 秒",
+    "age_minutes": "{m} 分钟",
+    "age_hours": "{h} 小时"
+  },
+  "profiles": {
+    "title": "配置文件",
+    "desc": "为不同网络或使用场景保存命名的配置快照（规则与设置相互隔离）。切换会先停止代理并断开活动连接。",
+    "active": "当前",
+    "none_active": "未使用配置文件",
+    "create": "从当前配置创建",
+    "create_title": "创建配置文件",
+    "rename": "重命名",
+    "rename_title": "重命名配置文件",
+    "duplicate": "复制",
+    "duplicate_title": "复制配置文件",
+    "switch": "切换",
+    "switch_confirm_title": "切换配置文件",
+    "switch_confirm_desc": "切换到「{name}」将停止代理并断开所有活动连接，然后用该配置文件的内容替换当前配置（未保存的改动会随切换保存回原配置文件）。切换后需手动重新启动代理。是否继续？",
+    "export": "导出",
+    "import": "导入",
+    "name_label": "配置文件名称",
+    "updated": "更新于",
+    "created": "配置文件已创建",
+    "renamed": "配置文件已重命名",
+    "duplicated": "配置文件已复制",
+    "switched": "已切换配置文件，代理已停止",
+    "exported": "配置文件已导出",
+    "imported": "配置文件已导入",
+    "imported_with_warnings": "配置文件已导入，但有警告",
+    "import_invalid": "导入失败：配置文件无效",
+    "action_failed": "操作失败",
+    "empty": "暂无配置文件，可从当前配置创建一个"
   }
 }

@@ -13,7 +13,7 @@ import {
 } from '../lib/icons';
 import { Box, Typography, TextField, Switch, IconButton, Button } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { AddSiteGroup, UpdateSiteGroup, GetECHProfiles, GetNAT64Profiles } from '../api/bindings';
+import { AddSiteGroup, UpdateSiteGroup, GetECHProfiles, GetNAT64Profiles, GetIPPools } from '../api/bindings';
 import { useTranslation } from '../i18n/I18nContext';
 import { SettingsCtx } from '../App';
 import { toast } from '../lib/toast';
@@ -117,6 +117,7 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess }) => {
     ech_profile_id: '',
     ech_domain: '',
     use_cf_pool: false,
+    ip_pool: '',
     nat64_enabled: false,
     nat64_profile_id: '',
     cert_verify: {
@@ -148,6 +149,7 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess }) => {
       data.cert_verify = normalizeCertVerify(data.cert_verify);
       data.nat64_enabled = Boolean(data.nat64_enabled);
       data.nat64_profile_id = String(data.nat64_profile_id || '');
+      data.ip_pool = String(data.ip_pool || '');
       setFormData(data);
       setFrag(fragFromBackend(data.frag));
     }
@@ -196,6 +198,14 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess }) => {
 
   const toggleBooleanField = (field: 'enabled' | 'ech_enabled' | 'use_cf_pool' | 'nat64_enabled') =>
     setFormData({ ...formData, [field]: !formData[field] });
+
+  const [ipPools, setIpPools] = useState<any[]>([]);
+
+  useEffect(() => {
+    GetIPPools()
+      .then((list) => setIpPools(Array.isArray(list) ? list : []))
+      .catch(() => setIpPools([]));
+  }, []);
 
   const currentMode = String(formData.mode || '').trim().toLowerCase();
   const certVerifyMode = String(formData.cert_verify?.mode || '').trim();
@@ -539,6 +549,41 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialData, onSuccess }) => {
               </Box>
             )}
           </Box>
+
+          {showCfPool && ipPools.length > 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 2 }}>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary', px: 1 }}>
+                {t('rules.form.ip_pool_select')}
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {ipPools.map((pool: any) => {
+                  const active = formData.ip_pool === pool.name;
+                  return (
+                    <Box
+                      key={pool.name}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setFormData({ ...formData, ip_pool: active ? '' : pool.name })}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFormData({ ...formData, ip_pool: active ? '' : pool.name }); }}
+                      sx={{
+                        px: 1.5, py: 0.75, borderRadius: 1.5, border: 1, cursor: 'pointer',
+                        borderColor: active ? 'primary.main' : 'divider',
+                        bgcolor: active ? (theme: any) => alpha(theme.palette.primary.main, 0.08) : 'action.hover',
+                        display: 'flex', flexDirection: 'column', gap: 0.25, minWidth: 0,
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: active ? 'primary.main' : 'text.primary' }}>
+                        {pool.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>
+                        {t('rules.form.ip_pool_count', { count: (pool.preferred_ips || []).length })}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
 
           {showFragment && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 2, border: 1, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 2 }}>

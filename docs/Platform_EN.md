@@ -25,11 +25,17 @@
 | Transparent / Direct | Raw pass-through and direct |
 | DoH / ECH (DoH layer) | Failover, ECH profiles, QUIC DoH, frontend SNI |
 | Cloudflare preferred-IP pool | Speed test, health check, invalidation |
+| Named CDN IP pools | CRUD over named pools (`GetIPPools` / `UpdateIPPools`); rules bind `ip_pool` by name |
+| Live connections | `GetActiveConnections` (protocol / host / destination / matched rule / mode / bytes / age) |
+| Match explanation | `ExplainMatch` runs the real pipeline and reports mode / rule / DNS / upstream / candidates |
+| Configuration profiles | Named snapshots of settings + rules: create, rename, duplicate, switch, import, export |
+| Diagnostics bundle | Status + logs + redacted settings as a zip shared through the system sheet |
+| Startup migration report | `GetLastMigrationReport`, surfaced on the Dashboard |
 | NAT64 | Multiple prefixes with tests |
 | Evolution tests | Direct / TCPing / domain-fronting / TLS-fragment / ECH / QUIC results shown |
 | Import / export | Desktop format; rules are only validated on import (mode whitelist + domain de-dup), CA fields are kept |
 | VpnService TUN (Beta) | Kotlin tunnel + Go `sing-tun` + gvisor stack, no root |
-| UI | The desktop React/MUI frontend (9 screens), ☰ drawer, 6 color schemes × light/dark, zh/en/ru |
+| UI | The desktop React/MUI frontend (11 screens), ☰ drawer, 6 color schemes × light/dark, zh/en/ru |
 
 ### CA capabilities (restored)
 

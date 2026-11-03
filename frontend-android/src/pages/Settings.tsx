@@ -24,6 +24,7 @@ import { parseLatencyMs } from '../lib/utils';
 import { useTranslation } from '../i18n/I18nContext';
 import { useColorScheme } from '@mui/material';
 import { availableThemes } from '../theme';
+import IPPoolsSection from '../components/IPPoolsSection';
 
 interface SettingsProps {
   cache: any;
@@ -581,6 +582,10 @@ const Settings: React.FC<SettingsProps> = ({ cache, onCacheUpdate, currentThemeI
                 </Grid>
               </Box>
             </Box>
+          </Grid>
+
+          <Grid size={12}>
+            <IPPoolsSection />
           </Grid>
 
         </Grid>

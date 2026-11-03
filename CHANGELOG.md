@@ -8,6 +8,17 @@ project adheres to the desktop SniShaper release cadence (`alpha` / `beta` / `rc
 
 ### Added
 
+- Desktop feature migration: live connection viewer (searchable, 2.5 s refresh),
+  rule match explanation (`ExplainMatch`), named CDN IP pools with rule binding,
+  configuration profiles (create / rename / duplicate / switch / import / export),
+  the startup configuration migration report on the Dashboard, and a diagnostics
+  bundle (status + logs + redacted settings) shared through the system sheet.
+- Native file hand-off for the WebView: `<input type="file">` picker support and a
+  `SaveFile` bridge that writes exports to the cache and opens the share sheet,
+  replacing the browser blob download which Android WebView does not handle.
+- `snishaper-core` bridge additions: `GetActiveConnections`, `ExplainMatch`,
+  `GetIPPools` / `UpdateIPPools` and per-pool fetch / health / cleanup,
+  `GetLastMigrationReport`, profile lifecycle methods and `ExportDiagnostics`.
 - Signed release pipeline: `signingConfigs` reads `keystore.properties` or the
   `SNISHAPER_KEYSTORE*` environment variables, signs with v2 + v3 + v4, and the new
   `scripts/init-keystore.ps1` generates the PKCS12 keystore (RSA 4096, 30 years).
@@ -22,6 +33,8 @@ project adheres to the desktop SniShaper release cadence (`alpha` / `beta` / `rc
 - Configurable TUN MTU in Settings, applied by `TunVpnService` when the tunnel starts.
 
 ### Changed
+
+- Pin the iconify packages in dependabot so upstream icon changes cannot break the bundle.
 
 - Frontend de-desktop pass: Settings keeps only port, language, appearance, theme, rule
   auto-update, TUN MTU, certificates, IPv6 and the Cloudflare IP pool.

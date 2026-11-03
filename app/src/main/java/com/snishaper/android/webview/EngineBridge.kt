@@ -277,6 +277,43 @@ internal class EngineBridge(private val webView: WebView) {
             "SetAutoUpdateRules" -> { patchSettings(app) { it.put("auto_update_rules", a.bool(0)) }; null }
             "UpdateRules" -> { app.forceFetchCloudflareIPs(); null }
 
+            // ---- live connections / rule explanation -----------------
+            "GetActiveConnections" -> parse(app.getActiveConnectionsJSON())
+            "ExplainMatch" -> parse(app.explainMatchJSON(a.string(0), a.string(1)))
+
+            // ---- named IP pools --------------------------------------
+            "GetIPPools" -> parse(app.getIPPoolsJSON())
+            "UpdateIPPools" -> { app.updateIPPoolsJSON(a.json(0)); null }
+            "GetIPPoolStats" -> parse(app.getIPPoolStatsJSON(a.string(0)))
+            "ForceFetchIPPoolIPs" -> parse(app.forceFetchIPPoolIPsJSON(a.string(0)))
+            "RefreshIPPool" -> { app.refreshIPPoolJSON(a.string(0)); null }
+            "RemoveInvalidIPPoolIPs" -> app.removeInvalidIPPoolIPsJSON(a.string(0))
+            "TriggerIPPoolHealthCheck" -> { app.triggerIPPoolHealthCheckJSON(a.string(0)); null }
+
+            // ---- configuration profiles ------------------------------
+            "ListProfiles" -> parse(app.listProfilesJSON())
+            "GetActiveProfile" -> app.activeProfileJSON
+            "CreateProfile" -> parse(app.createProfileJSON(a.string(0)))
+            "RenameProfile" -> { app.renameProfileJSON(a.string(0), a.string(1)); null }
+            "DuplicateProfile" -> { app.duplicateProfileJSON(a.string(0), a.string(1)); null }
+            "SwitchProfile" -> { app.switchProfileJSON(a.string(0)); null }
+            "ExportProfile" -> app.exportProfileJSON(a.string(0))
+            "ImportProfile" -> parse(app.importProfileJSON(a.string(0)))
+
+            // ---- diagnostics / file export ---------------------------
+            "GetLastMigrationReport" -> parse(app.lastMigrationReportJSON)
+            "ExportDiagnostics" -> {
+                val path = app.exportDiagnosticsJSON()
+                FileExporter.sharePath(webView.context, path, "application/zip")
+                path
+            }
+            "SaveFile" -> {
+                val name = a.string(0)
+                val file = FileExporter.saveToCache(webView.context, name, a.string(1).toByteArray())
+                FileExporter.sharePath(webView.context, file.absolutePath, FileExporter.mimeFor(name))
+                name
+            }
+
             "GetAppVersion" -> appVersion()
             "GetBuildInfo" -> parse(app.buildInfoJSON)
 
@@ -327,6 +364,9 @@ internal class EngineBridge(private val webView: WebView) {
     private class Args(private val array: JSONArray) {
         fun obj(index: Int): JSONObject =
             array.optJSONObject(index) ?: throw BridgeException("argument $index is missing")
+
+        fun json(index: Int): String =
+            array.opt(index)?.toString() ?: throw BridgeException("argument $index is missing")
 
         fun string(index: Int): String = array.optString(index, "")
 

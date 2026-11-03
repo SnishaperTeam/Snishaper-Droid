@@ -23,6 +23,7 @@ import {
   StopTUN,
   GetCAInstallStatus,
   InstallCA,
+  GetLastMigrationReport,
   EventsOn
 } from '../api/bindings';
 import Modal from '../components/Modal';
@@ -57,6 +58,7 @@ const Dashboard: React.FC = () => {
   const [caStatus, setCaStatus] = useState<any>({ Installed: false, CertPath: '', Platform: 'android' });
   const [showCertModal, setShowCertModal] = useState(false);
   const [isInstallingCert, setIsInstallingCert] = useState(false);
+  const [migration, setMigration] = useState<any>(null);
 
   const refresh = async () => {
     try {
@@ -95,6 +97,12 @@ const Dashboard: React.FC = () => {
       console.error("Dashboard refresh error:", e);
     }
   };
+
+  useEffect(() => {
+    GetLastMigrationReport()
+      .then((report) => { if (report && (report.changes?.length || report.warnings?.length || report.errors?.length)) setMigration(report); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const resetInactivityTimer = () => {
@@ -347,6 +355,36 @@ const Dashboard: React.FC = () => {
             </Box>
           </Grid>
         </Grid>
+
+        {migration && (
+          <Grid size={12}>
+            <Box sx={{ p: 2.5, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, boxShadow: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                <Box sx={{ color: 'warning.main' }}><ShieldAlert size={20} /></Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                  {t('dashboard.migration_report.title')}
+                </Typography>
+              </Box>
+              {([
+                { key: 'changes', items: migration.changes, color: 'text.primary' },
+                { key: 'warnings', items: migration.warnings, color: 'warning.main' },
+                { key: 'errors', items: migration.errors, color: 'error.main' },
+                { key: 'backups', items: migration.backup_paths, color: 'text.secondary' },
+              ] as const).filter((section) => Array.isArray(section.items) && section.items.length > 0).map((section) => (
+                <Box key={section.key} sx={{ mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>
+                    {t(`dashboard.migration_report.${section.key}`)}
+                  </Typography>
+                  {section.items.slice(0, 6).map((line: string, index: number) => (
+                    <Typography key={index} variant="caption" sx={{ display: 'block', color: section.color, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                      · {line}
+                    </Typography>
+                  ))}
+                </Box>
+              ))}
+            </Box>
+          </Grid>
+        )}
       </Box>
 
       <Modal isOpen={showCertModal} onClose={() => setShowCertModal(false)} title={t('dashboard.install_cert.title')} maxWidth="md">

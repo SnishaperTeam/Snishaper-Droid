@@ -4,7 +4,7 @@ import {
 } from '../lib/icons';
 import {
   GetSiteGroups, DeleteSiteGroup, ExportConfig, EventsOn, UpdateRules,
-  GetRulesLayerInfo, RevertSiteGroupToUpstream
+  GetRulesLayerInfo, RevertSiteGroupToUpstream, ExplainMatch
 } from '../api/bindings';
 import {
   Box, Typography, Button, IconButton, TextField, InputAdornment,
@@ -90,6 +90,11 @@ const RuleItem: React.FC<{ group: any; layer?: string; onEdit: (group: any) => v
           {(group.domains || []).slice(0, 4).map((d: string, i: number) => (
             <Typography key={i} variant="caption" sx={{ fontSize: 9, bgcolor: 'action.hover', px: 1, py: 0.25, borderRadius: 1, border: 1, borderColor: 'divider', color: 'text.secondary', whiteSpace: 'nowrap', }}>{d}</Typography>
           ))}
+          {group.ip_pool && (
+            <Typography variant="caption" sx={{ fontSize: 9, bgcolor: 'action.hover', px: 1, py: 0.25, borderRadius: 1, border: 1, borderColor: 'divider', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              {t('rules.display.ip_pool_name', { name: group.ip_pool })}
+            </Typography>
+          )}
           {(group.domains || []).length > 4 && (
             <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 700, px: 0.5, opacity: 0.5 }}>+{(group.domains || []).length - 4}</Typography>
           )}
@@ -134,6 +139,11 @@ const Rules: React.FC = () => {
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState<any>(null);
   const [pendingRevertGroup, setPendingRevertGroup] = useState<any>(null);
   const [updatingRules, setUpdatingRules] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'default' | 'override' | 'user'>('all');
+  const [explainOpen, setExplainOpen] = useState(false);
+  const [explainHost, setExplainHost] = useState('');
+  const [explainResult, setExplainResult] = useState<any>(null);
+  const [explainLoading, setExplainLoading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -166,6 +176,20 @@ const Rules: React.FC = () => {
   };
 
   const shortHash = (value?: string) => (value ? String(value).slice(0, 12) : '-');
+
+  const handleExplain = async () => {
+    const host = explainHost.trim();
+    if (!host || explainLoading) return;
+    setExplainLoading(true);
+    try {
+      setExplainResult(await ExplainMatch(host, ''));
+    } catch (err: any) {
+      setExplainResult(null);
+      toast.error(t('rules.explain_title'), String(err?.message || err || ''));
+    } finally {
+      setExplainLoading(false);
+    }
+  };
 
   const handleUpdateRules = async () => {
     if (updatingRules) return;
@@ -231,7 +255,13 @@ const Rules: React.FC = () => {
       const matchesSearch = ((g.name || '') + (g.website || '') + (g.domains || []).join(''))
         .toLowerCase().includes(search.toLowerCase());
       const matchesMode = filterMode === 'ALL' || getEffectiveMode(g) === filterMode;
-      return matchesSearch && matchesMode;
+      const layer = layerInfo?.site_group_layers?.[g.id];
+      const matchesSource =
+        sourceFilter === 'all' ||
+        (sourceFilter === 'default' && !layer) ||
+        (sourceFilter === 'override' && layer === 'override') ||
+        (sourceFilter === 'user' && layer === 'user');
+      return matchesSearch && matchesMode && matchesSource;
     });
     const groups_map: Record<string, any[]> = {};
     filtered.forEach(item => {
@@ -244,7 +274,7 @@ const Rules: React.FC = () => {
       if (b === OTHERS_KEY) return -1;
       return a.localeCompare(b);
     }).map(key => ({ title: key === OTHERS_KEY ? t('rules.display.others') : key, items: groups_map[key] }));
-  }, [groups, search, filterMode]);
+  }, [groups, search, filterMode, sourceFilter, layerInfo]);
 
   return (
     <Box sx={{ pt: 2, width: '100%', flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -255,7 +285,15 @@ const Rules: React.FC = () => {
           </Box>
           <Typography variant="h5" data-tut="rules-title" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>{t('rules.title')}</Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            onClick={() => { setExplainResult(null); setExplainOpen(true); }}
+            variant="outlined"
+            size="small"
+            startIcon={<Search size={16} />}
+          >
+            {t('rules.explain_button')}
+          </Button>
           <Button
             onClick={handleUpdateRules}
             disabled={updatingRules}
@@ -295,6 +333,34 @@ const Rules: React.FC = () => {
                 }}
               >
                 {m === 'TLS-RF' ? t('rules.display.fragment') : m === 'TRANSPARENT' ? t('rules.display.transparent') : m === 'MIGRATION' ? t('rules.display.migration') : m}
+              </Button>
+            );
+          })}
+        </Box>
+
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, p: 0.5, border: 1, borderColor: 'divider', borderRadius: 2, width: 'fit-content', flexWrap: 'wrap', minWidth: 0 }} role="tablist" aria-label={t('rules.filter_source_aria')}>
+          {([
+            { id: 'all' as const, label: t('rules.source_all') },
+            { id: 'default' as const, label: t('rules.source_default') },
+            { id: 'override' as const, label: t('rules.source_override') },
+            { id: 'user' as const, label: t('rules.source_user') },
+          ]).map((item) => {
+            const active = sourceFilter === item.id;
+            return (
+              <Button
+                key={item.id}
+                onClick={() => setSourceFilter(item.id)}
+                role="tab"
+                aria-selected={active}
+                size="small"
+                sx={{
+                  px: 2, py: 0.5, borderRadius: 1.5, fontSize: 10, fontWeight: 900, letterSpacing: '0.05em',
+                  textTransform: 'uppercase', minWidth: 0, color: active ? 'secondary.main' : 'text.secondary',
+                  bgcolor: active ? (theme) => alpha(theme.palette.secondary.main, 0.12) : 'transparent',
+                  '&:hover': { bgcolor: active ? (theme) => alpha(theme.palette.secondary.main, 0.12) : 'action.hover' },
+                }}
+              >
+                {item.label}
               </Button>
             );
           })}
@@ -365,6 +431,71 @@ const Rules: React.FC = () => {
         )}
       </Box>
 
+
+      <Modal
+        isOpen={explainOpen}
+        onClose={() => setExplainOpen(false)}
+        title={t('rules.explain_title')}
+        subtitle={t('rules.explain_subtitle')}
+        maxWidth="42rem"
+        footer={<Button type="button" onClick={() => setExplainOpen(false)} variant="outlined" size="small">{t('common.close')}</Button>}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              value={explainHost}
+              onChange={(e) => setExplainHost(e.target.value)}
+              placeholder={t('rules.explain_host_label')}
+              aria-label={t('rules.explain_host_label')}
+              onKeyDown={(e) => { if (e.key === 'Enter') void handleExplain(); }}
+            />
+            <Button onClick={() => void handleExplain()} disabled={explainLoading || !explainHost.trim()} variant="contained" size="small" sx={{ flexShrink: 0 }}>
+              {explainLoading ? t('rules.explain_running') : t('rules.explain_run')}
+            </Button>
+          </Box>
+
+          {explainResult && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {explainResult.simulated && (
+                <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('rules.explain_simulated_badge')}
+                </Typography>
+              )}
+              {[
+                { key: 'explain_host', value: explainResult.host },
+                { key: 'explain_mode', value: explainResult.mode },
+                { key: 'explain_source', value: explainResult.source },
+                { key: 'explain_rule', value: explainResult.rule_domain || explainResult.site_id },
+                { key: 'explain_dns', value: explainResult.dns_mode },
+                { key: 'explain_upstream', value: explainResult.upstream },
+                { key: 'explain_sni_fake', value: explainResult.sni_fake },
+              ].filter((row) => row.value).map((row) => (
+                <Box key={row.key} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, py: 0.75, borderBottom: 1, borderColor: 'divider' }}>
+                  <Typography variant="caption" color="text.secondary">{t(`rules.${row.key}`)}</Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 700, wordBreak: 'break-all', textAlign: 'right' }}>{String(row.value)}</Typography>
+                </Box>
+              ))}
+              {explainResult.downgraded && (
+                <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 700 }}>{t('rules.explain_downgraded')}</Typography>
+              )}
+              {Array.isArray(explainResult.candidates) && explainResult.candidates.length > 0 && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>
+                    {t('rules.explain_candidates')}
+                  </Typography>
+                  {explainResult.candidates.map((candidate: any, index: number) => (
+                    <Typography key={index} variant="caption" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                      {candidate.rule_domain || candidate.site_id || candidate.mode || JSON.stringify(candidate)}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
+        </Box>
+      </Modal>
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingGroup ? t('rules.edit_rule') : t('rules.create_rule')} maxWidth="42rem"
         footer={<>
           <Button type="button" onClick={() => setIsModalOpen(false)} variant="outlined" size="small">{t('common.cancel')}</Button>

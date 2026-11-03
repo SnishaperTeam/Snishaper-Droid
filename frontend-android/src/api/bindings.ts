@@ -77,90 +77,145 @@ export interface BuildInfo {
 }
 
 export const GetLanguage = () => appCall('GetLanguage');
+
 export const SetLanguage = (lang: string) => appCall('SetLanguage', lang);
+
 export const GetTheme = () => appCall('GetTheme');
+
 export const SetTheme = (theme: string) => appCall('SetTheme', theme);
+
 export const GetAppearanceMode = () => appCall('GetAppearanceMode');
+
 export const SetAppearanceMode = (mode: string) => appCall('SetAppearanceMode', mode);
+
 export const GetAutoUpdateRules = () => appCall('GetAutoUpdateRules');
+
 export const SetAutoUpdateRules = (enabled: boolean) => appCall('SetAutoUpdateRules', enabled);
+
 export const UpdateRules = () => appCall('UpdateRules');
 
 export const GetAppVersion = () => appCall('GetAppVersion');
+
 export const GetBuildInfo = () => appCall('GetBuildInfo');
 
 export const GetTUNConfig = () => appCall('GetTUNConfig');
+
 export const UpdateTUNConfig = (cfg: any) => appCall('UpdateTUNConfig', cfg);
+
 export const GetTUNStatus = () => appCall('GetTUNStatus');
+
 export const StartTUN = () => appCall('StartTUN');
+
 export const StopTUN = () => appCall('StopTUN');
 
 export const GetIPv6Available = () => appCall('GetIPv6Available');
+
 export const RefreshIPv6Check = () => appCall('RefreshIPv6Check');
 
 export const GetSiteGroups = () => appCall('GetSiteGroups');
+
 export const AddSiteGroup = (sg: any) => appCall('AddSiteGroup', sg);
+
 export const UpdateSiteGroup = (sg: any) => appCall('UpdateSiteGroup', sg);
+
 export const DeleteSiteGroup = (id: string) => appCall('DeleteSiteGroup', id);
+
 export const GetRulesLayerInfo = () => appCall('GetRulesLayerInfo');
+
 export const RevertSiteGroupToUpstream = (id: string) => appCall('RevertSiteGroupToUpstream', id);
+
 export const ExportConfig = () => appCall('ExportConfig');
+
 export const ImportConfigWithSummary = (content: string) => appCall('ImportConfigWithSummary', content);
 
 export const GetDNSNodes = () => appCall('GetDNSNodes');
+
 export const AddDNSNode = (n: any) => appCall('AddDNSNode', n);
+
 export const UpdateDNSNode = (n: any) => appCall('UpdateDNSNode', n);
+
 export const DeleteDNSNode = (id: string) => appCall('DeleteDNSNode', id);
+
 export const SetDNSNodePriority = (id: string, targetIndex: number) =>
   appCall('SetDNSNodePriority', id, targetIndex);
+
 export const TestDNSNode = (nodeID: string) => appCall('TestDNSNode', nodeID);
 
 export const GetECHProfiles = () => appCall('GetECHProfiles');
+
 export const UpsertECHProfile = (p: any) => appCall('UpsertECHProfile', p);
+
 export const DeleteECHProfile = (id: string) => appCall('DeleteECHProfile', id);
+
 export const FetchECHConfig = (domain: string, dohURL: string) => appCall('FetchECHConfig', domain, dohURL);
 
 export const GetNAT64Profiles = () => appCall('GetNAT64Profiles');
+
 export const AddNAT64Profile = (p: any) => appCall('AddNAT64Profile', p);
+
 export const UpdateNAT64Profile = (p: any) => appCall('UpdateNAT64Profile', p);
+
 export const DeleteNAT64Profile = (id: string) => appCall('DeleteNAT64Profile', id);
+
 export const TestNAT64Profile = (prefix: string) => appCall('TestNAT64Profile', prefix);
 
 export const GetMigrationServer = () => appCall('GetMigrationServer');
+
 export const SetMigrationServer = (server: string) => appCall('SetMigrationServer', server);
+
 export const TestMigration = (server: string) => appCall('TestMigration', server);
 
 export const GetCloudflareConfig = () => appCall('GetCloudflareConfig');
+
 export const UpdateCloudflareConfig = (cfg: any) => appCall('UpdateCloudflareConfig', cfg);
+
 export const GetCloudflareIPStats = () => appCall('GetCloudflareIPStats');
+
 export const ForceFetchCloudflareIPs = () => appCall('ForceFetchCloudflareIPs');
+
 export const TriggerCFHealthCheck = () => appCall('TriggerCFHealthCheck');
+
 export const RemoveInvalidCFIPs = () => appCall('RemoveInvalidCFIPs');
 
 export const GetListenPort = () => appCall('GetListenPort');
+
 export const SetListenPort = (port: number) => appCall('SetListenPort', port);
+
 export const GetProxyMode = () => appCall('GetProxyMode');
+
 export const IsProxyRunning = () => appCall('IsProxyRunning');
+
 export const StartProxy = () => appCall('StartProxy');
+
 export const StopProxy = () => appCall('StopProxy');
+
 export const GetStats = () => appCall('GetStats');
 
 export const GetAutoRoutingStatus = () => appCall('GetAutoRoutingStatus');
 
 export const GetRecentLogs = (limit: number) => appCall('GetRecentLogs', limit);
+
 export const ClearLogs = () => appCall('ClearLogs');
 
 export const StartEvolutionTest = (domains: string[], enableIPv6: boolean) =>
   appCall('StartEvolutionTest', domains, enableIPv6);
+
 export const StopEvolutionTest = () => appCall('StopEvolutionTest');
+
 export const ApplyEvolutionRule = (ruleId: string) => appCall('ApplyEvolutionRule', ruleId);
+
 export const GetEvolutionTestStatus = () => appCall('GetEvolutionTestStatus');
 
 export const InstallCA = () => appCall('InstallCA');
+
 export const RegenerateCert = () => appCall('RegenerateCert');
+
 export const UninstallCert = (thumbprint: string) => appCall('UninstallCert', thumbprint);
+
 export const GetCAInstallStatus = () => appCall('GetCAInstallStatus');
+
 export const GetInstalledCerts = () => appCall('GetInstalledCerts');
+
 export const GetCACertPEM = () => appCall('GetCACertPEM');
 
 const TUTORIAL_DONE_KEY = 'tutorial-done';
@@ -194,3 +249,28 @@ export const OpenURL = (url: string) => {
   }
   return Promise.resolve(null);
 };
+
+export const GetActiveConnections = () => appCall('GetActiveConnections');
+export const ExplainMatch = (host: string, processName: string) => appCall('ExplainMatch', host, processName);
+
+export const GetIPPools = () => appCall('GetIPPools');
+export const UpdateIPPools = (pools: any[]) => appCall('UpdateIPPools', pools);
+export const GetIPPoolStats = (name: string) => appCall('GetIPPoolStats', name);
+export const ForceFetchIPPoolIPs = (name: string) => appCall('ForceFetchIPPoolIPs', name);
+export const RefreshIPPool = (name: string) => appCall('RefreshIPPool', name);
+export const RemoveInvalidIPPoolIPs = (name: string) => appCall('RemoveInvalidIPPoolIPs', name);
+export const TriggerIPPoolHealthCheck = (name: string) => appCall('TriggerIPPoolHealthCheck', name);
+
+export const ListProfiles = () => appCall('ListProfiles');
+export const GetActiveProfile = () => appCall('GetActiveProfile');
+export const CreateProfile = (name: string) => appCall('CreateProfile', name);
+export const RenameProfile = (oldName: string, newName: string) => appCall('RenameProfile', oldName, newName);
+export const DuplicateProfile = (srcName: string, dstName: string) => appCall('DuplicateProfile', srcName, dstName);
+export const SwitchProfile = (name: string) => appCall('SwitchProfile', name);
+export const ExportProfile = (name: string) => appCall('ExportProfile', name);
+export const ImportProfile = (bundleJson: string) => appCall('ImportProfile', bundleJson);
+
+export const GetLastMigrationReport = () => appCall('GetLastMigrationReport');
+
+export const SaveFile = (name: string, content: string) => appCall('SaveFile', name, content);
+export const ExportDiagnostics = () => appCall('ExportDiagnostics');

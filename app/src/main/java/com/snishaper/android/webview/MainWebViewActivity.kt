@@ -2,11 +2,13 @@ package com.snishaper.android.webview
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.webkit.ConsoleMessage
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -72,6 +74,23 @@ open class MainWebViewActivity : ComponentActivity() {
     fun requestVpnConsent(consent: Intent) {
         runCatching { vpnConsentLauncher.launch(consent) }
             .onFailure { Log.e(TAG, "vpn: consent launch failed: ${it.message}") }
+    }
+
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+
+    /**
+     * Backs `<input type="file">` in the WebView (profile import). WebChromeClient
+     * must hand the picked URI back through the stored callback, otherwise the
+     * picker opens and the page never receives a file.
+     */
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val callback = fileChooserCallback
+        fileChooserCallback = null
+        if (callback == null) return@registerForActivityResult
+        val uri = result.data?.data
+        callback.onReceiveValue(if (result.resultCode == RESULT_OK && uri != null) arrayOf(uri) else null)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -186,6 +205,29 @@ open class MainWebViewActivity : ComponentActivity() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                 Log.i(TAG, "webview console: ${message.message()} (${message.sourceId()}:${message.lineNumber()})")
                 return true
+            }
+
+            override fun onShowFileChooser(
+                view: WebView,
+                callback: ValueCallback<Array<Uri>>,
+                params: FileChooserParams,
+            ): Boolean {
+                fileChooserCallback?.onReceiveValue(null)
+                fileChooserCallback = callback
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = params.acceptTypes
+                        ?.firstOrNull { it.isNotBlank() && !it.contains(',') && it.contains('/') }
+                        ?: "*/*"
+                }
+                return runCatching {
+                    fileChooserLauncher.launch(intent)
+                    true
+                }.getOrElse {
+                    fileChooserCallback = null
+                    Log.e(TAG, "webview: file picker failed: ${it.message}")
+                    false
+                }
             }
         }
 

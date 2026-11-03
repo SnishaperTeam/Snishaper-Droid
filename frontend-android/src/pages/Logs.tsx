@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredVa
 import {
   FileText, Delete, Pause, Play, Search, ChevronsUp, ArrowDown, Download, X
 } from '../lib/icons';
-import { ClearLogs, GetRecentLogs } from '../api/bindings';
+import { ClearLogs, GetRecentLogs, SaveFile, ExportDiagnostics } from '../api/bindings';
 import { useTranslation } from '../i18n/I18nContext';
+import { toast } from '../lib/toast';
 import { Box, Typography, Button, TextField, InputAdornment, IconButton } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { keyframes } from '@emotion/react';
@@ -109,17 +110,24 @@ const Logs: React.FC = () => {
   const handleClear = async () => { await ClearLogs(); setLines([]); prevRef.current = ''; };
   const handleScrollTop = () => { if (scrollRef.current) scrollRef.current.scrollTop = 0; };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const content = filteredLines.join('\n');
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `snishaper-logs-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const name = `snishaper-logs-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.txt`;
+    try {
+      await SaveFile(name, content);
+      toast.success(t('logs.export'), name);
+    } catch (err: any) {
+      toast.error(t('common.failed'), String(err?.message || err || ''));
+    }
+  };
+
+  const handleDiagnostics = async () => {
+    try {
+      await ExportDiagnostics();
+      toast.success(t('logs.diag_success'));
+    } catch (err: any) {
+      toast.error(t('logs.diag_failed'), String(err?.message || err || ''));
+    }
   };
 
   const renderedContent = useMemo(() => {
@@ -169,6 +177,10 @@ const Logs: React.FC = () => {
           <Button onClick={handleExport} disabled={filteredLines.length === 0}
             variant="outlined" size="small" startIcon={<Download size={14} />}>
             {t('logs.export')}
+          </Button>
+          <Button onClick={handleDiagnostics}
+            variant="outlined" size="small" startIcon={<FileText size={14} />}>
+            {t('logs.diag_button')}
           </Button>
         </Box>
       </Box>

@@ -25,11 +25,17 @@
 | Transparent / Direct | 纯透传与直连 |
 | DoH / ECH（DoH 层） | 多节点故障转移、ECH 档案、QUIC DoH、前端 SNI |
 | Cloudflare 优选池 | 测速、健康检查、失效清理、API Key |
+| 多 CDN 优选池 | 命名池 CRUD（`GetIPPools` / `UpdateIPPools`），规则按名称绑定 `ip_pool` |
+| 实时连接 | `GetActiveConnections`（协议 / 主机 / 目标 / 命中规则 / 模式 / 上下行 / 时长） |
+| 规则匹配解释 | `ExplainMatch`：走真实匹配管线，展示模式 / 规则 / DNS / 上游 / 候选 |
+| 多配置档案 | 命名快照（settings + rules），创建 / 重命名 / 复制 / 切换 / 导入 / 导出 |
+| 诊断包 | 状态 + 日志 + 脱敏设置打包为 zip，经系统分享面板导出 |
+| 启动迁移报告 | `GetLastMigrationReport`，Dashboard 展示变更 / 告警 / 备份路径 |
 | NAT64 | 多前缀配置与测试 |
 | 规则进化测试 | 直连 / TCPing / 域前置 / TLS 分片 / ECH / QUIC 探测结果展示 |
 | 配置导入导出 | 桌面格式，导入时仅做规则校验（模式白名单 + 域名去重），不再剥离 CA 字段 |
 | VpnService TUN（Beta） | Kotlin 隧道 + Go `sing-tun` + gvisor 栈，无需 root |
-| UI | 桌面版 React/MUI 前端（9 页）、☰ 侧边栏、6 配色 × 明暗、zh/en/ru |
+| UI | 桌面版 React/MUI 前端（11 页）、☰ 侧边栏、6 配色 × 明暗、zh/en/ru |
 
 ### CA 功能（已恢复）
 
@@ -61,6 +67,7 @@
 - 无全局系统代理 API：Android 端通过 VpnService 或手动 Wi-Fi 代理使用。
 - CA 安装到系统信任库需要已 root 的设备（su + certutil）；未 root 设备可生成/导出证书但无法系统级安装。
 - 智能分流 Smart 不可用（产品决定，见 `app.go` 的 sanitize 分支）；未命中手动规则的域名按 Direct 处理。
+- 按进程分流（`process` 字段）不迁移：Android 无法获取连接所属进程，规则永不命中；需要同类能力应做 VpnService 按包名白名单。
 - 应用内更新未实现，请关注 [Releases](https://github.com/SnishaperTeam/Snishaper-Droid/releases)。
 
 ## 5. 数据目录

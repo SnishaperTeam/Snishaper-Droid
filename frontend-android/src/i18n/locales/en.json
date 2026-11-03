@@ -18,7 +18,8 @@
     "running": "Running",
     "stopped": "Stopped",
     "error": "Error",
-    "clear": "Clear"
+    "clear": "Clear",
+    "close": "Close"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -34,7 +35,9 @@
     "nav_label": "Main navigation",
     "menu_aria": "Open navigation menu",
     "dark_mode_aria": "Switch to dark mode",
-    "light_mode_aria": "Switch to light mode"
+    "light_mode_aria": "Switch to light mode",
+    "connections": "Live Connections",
+    "profiles": "Profiles"
   },
   "welcome": {
     "title": "Welcome to SniShaper",
@@ -95,6 +98,13 @@
       "tun_starting": "TUN is starting, please wait...",
       "tun_timeout": "TUN startup timed out. Check the logs.",
       "tun_stopped": "TUN path disabled."
+    },
+    "migration_report": {
+      "title": "Configuration migration report",
+      "changes": "Applied changes",
+      "warnings": "Warnings",
+      "errors": "Errors",
+      "backups": "Backups of the original configuration"
     }
   },
   "proxies": {
@@ -235,7 +245,9 @@
       "prefix_label": "Prefix: {prefix}",
       "website_placeholder": "e.g. google.com",
       "placeholder_mapped": "e.g. github-com.mapped",
-      "manual_ech": "Manually configured ECH"
+      "manual_ech": "Manually configured ECH",
+      "ip_pool_select": "Select Named IP Pool",
+      "ip_pool_count": "{count} IPs"
     },
     "modes": {
       "mitm": "Modify SNI or inject ECH config",
@@ -273,7 +285,8 @@
       "others": "Others",
       "default_group": "Default",
       "cf_ip_pool": "CF IP POOL",
-      "doh_dynamic": "DOH DYNAMIC"
+      "doh_dynamic": "DOH DYNAMIC",
+      "ip_pool_name": "IP POOL: {name}"
     },
     "notifications": {
       "deleted": "Rule deleted",
@@ -301,7 +314,29 @@
     "update_latest_detail": "Remote updated {date} · {hash}",
     "update_applied_detail": "Local {local} → remote {remote} · remote updated {date}",
     "update_applied": "Rules updated: {added} added, {changed} changed, {removed} removed",
-    "update_failed": "Rules update failed"
+    "update_failed": "Rules update failed",
+    "explain_button": "Test domain",
+    "explain_title": "Rule match test",
+    "explain_subtitle": "Simulates how a domain would be handled; the result is a prediction, not the decision made for a real connection.",
+    "explain_host_label": "Domain",
+    "explain_process_label": "Process (optional)",
+    "explain_run": "Test",
+    "explain_running": "Testing…",
+    "explain_simulated_badge": "Simulated",
+    "explain_host": "Host",
+    "explain_mode": "Mode",
+    "explain_source": "Source",
+    "explain_rule": "Matched rule",
+    "explain_upstream": "Upstream",
+    "explain_dns": "DNS mode",
+    "explain_sni_fake": "Fake SNI",
+    "explain_downgraded": "Global transparent mode downgraded this MITM rule to direct to avoid certificate errors.",
+    "explain_candidates": "Candidate rules (by priority)",
+    "filter_source_aria": "Filter by source",
+    "source_all": "All",
+    "source_default": "Default",
+    "source_override": "Modified",
+    "source_user": "Custom"
   },
   "logs": {
     "title": "System Logs",
@@ -318,7 +353,11 @@
     "latest": "Latest",
     "capture_on": "CAPTURE ON",
     "buffer": "BUFFER: {count} LINES",
-    "refresh_paused": "REFRESH PAUSED"
+    "refresh_paused": "REFRESH PAUSED",
+    "diag_button": "Diagnostics",
+    "diag_success": "Diagnostics package exported",
+    "diag_failed": "Failed to export diagnostics package",
+    "diag_exporting": "Exporting…"
   },
   "routing": {
     "title": "Auto Routing",
@@ -414,7 +453,21 @@
     "mtu_invalid": "MTU must be between 576 and 9000",
     "tun_hint": "Android builds the tunnel through the system VpnService, so the VPN consent dialog appears on first start. The interface address and DNS come from the 198.18.0.0/16 range and need no manual setup.",
     "certs_empty": "No installed certificate",
-    "ip_pool_empty": "IP pool is empty"
+    "ip_pool_empty": "IP pool is empty",
+    "ip_pools": {
+      "title": "Multi-CDN IP Pools",
+      "subtitle": "Manually maintain named preferred-IP pools per CDN; rules can select them by name",
+      "empty": "No custom IP pools yet — add one with the form below",
+      "name_label": "Pool name",
+      "ips_label": "IP list (comma/space/newline separated)",
+      "add": "Add",
+      "added": "IP pool {name} added",
+      "removed": "IP pool {name} removed",
+      "ip_count": "{count} IPs",
+      "invalid_name": "Invalid or reserved name (cloudflare)",
+      "no_ips": "Enter at least one IP address",
+      "duplicate_name": "An IP pool with this name already exists"
+    }
   },
   "evolution": {
     "title": "Evolution Mode",
@@ -523,5 +576,54 @@
   },
   "toast": {
     "close_notification": "Dismiss notification"
+  },
+  "connections": {
+    "title": "Live Connections",
+    "count": "{n} connections",
+    "search_placeholder": "Search host / rule / mode",
+    "empty": "No active connections",
+    "no_match": "No matching connections",
+    "col_host": "Host",
+    "col_dst": "Destination",
+    "col_rule": "Rule",
+    "col_mode": "Mode",
+    "col_up": "Up",
+    "col_down": "Down",
+    "col_age": "Age",
+    "col_state": "State",
+    "state_active": "Active",
+    "copy_detail": "Copy connection details",
+    "age_seconds": "{s}s",
+    "age_minutes": "{m}m",
+    "age_hours": "{h}h"
+  },
+  "profiles": {
+    "title": "Configuration Profiles",
+    "desc": "Save named configuration snapshots for different networks or usage scenarios (rules and settings stay isolated per profile). Switching stops the proxy and drops active connections first.",
+    "active": "active",
+    "none_active": "no profile active",
+    "create": "Create from current",
+    "create_title": "Create profile",
+    "rename": "Rename",
+    "rename_title": "Rename profile",
+    "duplicate": "Duplicate",
+    "duplicate_title": "Duplicate profile",
+    "switch": "Switch",
+    "switch_confirm_title": "Switch profile",
+    "switch_confirm_desc": "Switching to \"{name}\" stops the proxy and drops all active connections, then replaces the current configuration with this profile's contents (unsaved edits are saved back into the outgoing profile). Restart the proxy manually afterwards. Continue?",
+    "export": "Export",
+    "import": "Import",
+    "name_label": "Profile name",
+    "updated": "updated",
+    "created": "Profile created",
+    "renamed": "Profile renamed",
+    "duplicated": "Profile duplicated",
+    "switched": "Profile switched, proxy stopped",
+    "exported": "Profile exported",
+    "imported": "Profile imported",
+    "imported_with_warnings": "Profile imported with warnings",
+    "import_invalid": "Import failed: invalid profile bundle",
+    "action_failed": "Action failed",
+    "empty": "No profiles yet — create one from the current configuration"
   }
 }
