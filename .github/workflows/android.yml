@@ -170,10 +170,10 @@ jobs:
             ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
             ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}
             ${{ env.ANDROID_SDK_ROOT }}/build-tools/${{ env.BUILD_TOOLS }}
-          # v2 namespace: the old key's cache entry is corrupt (tar exit 2)
-          key: android-sdk-v2-${{ runner.os }}-api${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
+          # v3 namespace: the v2 cache entries are corrupt (	ar exits with 2 on restore)
+          key: android-sdk-v3-${{ runner.os }}-api${{ env.COMPILE_SDK }}.${{ env.COMPILE_SDK_MINOR }}-bt${{ env.BUILD_TOOLS }}-ndk${{ env.NDK_VERSION }}
           restore-keys: |
-            android-sdk-v2-${{ runner.os }}-
+            android-sdk-v3-${{ runner.os }}-
 
       # gomobile / gobind 二进制缓存（固定版本）
       - name: Cache gomobile toolchain
