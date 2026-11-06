@@ -4,5 +4,5 @@
 // applied (it fails with "no longer required since AGP 9.0"). No Compose stack exists:
 // the UI is the desktop React bundle served in a WebView.
 plugins {
-    id("com.android.application") version "9.6.0-alpha02" apply false
+    id("com.android.application") version "9.6.0-alpha03" apply false
 }
