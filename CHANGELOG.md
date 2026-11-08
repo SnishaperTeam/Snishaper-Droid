@@ -47,6 +47,11 @@ project adheres to the desktop SniShaper release cadence (`alpha` / `beta` / `rc
 - `GetBuildInfo` wired into the bridge; the unused upstream / fragment / auto-routing-config /
   migration-enabled / import / export-cert bridge branches removed.
 - Documents (README, build guides, changelog) realigned with the restored CA surface.
+- Committed default rules/settings now carry `config_version: 1` (aligned with the desktop
+  `rules/config.json`), so a fresh install loads without a legacy config migration and the
+  `.pre-migration.bak` backup it produces; `gen-defaults` stamps the version on regeneration.
+- Dependabot no longer auto-merges GitHub Actions updates (desktop policy parity): a new
+  action major runs in CI with repository secrets before any human review.
 
 ### Removed
 

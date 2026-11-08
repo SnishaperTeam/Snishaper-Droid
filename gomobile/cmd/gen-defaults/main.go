@@ -45,6 +45,7 @@ func main() {
 	}
 
 	rewritten, cleared := sanitizeRulesConfig(&remote)
+	remote.ConfigVersion = proxy.CurrentConfigVersion
 	rulesJSON, err := json.MarshalIndent(remote, "", "  ")
 	if err != nil {
 		fatal("marshal rules: %v", err)
@@ -52,6 +53,7 @@ func main() {
 	rulesJSON = append(rulesJSON, '\n')
 
 	settings := proxy.SettingsConfig{
+		ConfigVersion:  proxy.CurrentConfigVersion,
 		ListenPort:     "8080",
 		AutoRouting:    proxy.AutoRoutingConfig{Mode: ""},
 		TUN:            proxy.TUNConfig{Enabled: false, MTU: 1500, DNSHijack: true, AutoRoute: false, StrictRoute: false, Stack: "gvisor"},

@@ -87,6 +87,9 @@ func TestCommittedDefaultsAreValid(t *testing.T) {
 	if len(rulesConfig.SiteGroups) != 222 {
 		t.Fatalf("defaults site groups = %d, want 222", len(rulesConfig.SiteGroups))
 	}
+	if rulesConfig.ConfigVersion != proxy.CurrentConfigVersion {
+		t.Fatalf("defaults rules config_version = %d, want %d", rulesConfig.ConfigVersion, proxy.CurrentConfigVersion)
+	}
 	for _, group := range rulesConfig.SiteGroups {
 		switch group.Mode {
 		case "mitm", "tls-rf", "quic", "transparent", "migration", "direct":
@@ -105,6 +108,9 @@ func TestCommittedDefaultsAreValid(t *testing.T) {
 	}
 	if strings.TrimSpace(string(settings.AutoRouting.Mode)) != "" {
 		t.Fatalf("defaults auto routing mode = %q, want empty", settings.AutoRouting.Mode)
+	}
+	if settings.ConfigVersion != proxy.CurrentConfigVersion {
+		t.Fatalf("defaults settings config_version = %d, want %d", settings.ConfigVersion, proxy.CurrentConfigVersion)
 	}
 	if settings.MigrationEnabled != nil && *settings.MigrationEnabled {
 		t.Fatal("defaults must not enable the migration service")
