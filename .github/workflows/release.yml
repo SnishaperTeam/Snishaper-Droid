@@ -540,7 +540,11 @@ jobs:
           }).encode('utf-8')
           login_req = urllib.request.Request(
               f'{base}/api/admin/session', data=login_payload,
-              headers={'Content-Type': 'application/json; charset=utf-8'}, method='POST')
+              # Cloudflare blocks the default Python-urllib UA with 403.
+              headers={
+                  'Content-Type': 'application/json; charset=utf-8',
+                  'User-Agent': 'Mozilla/5.0 (compatible; SnishaperDroid-Release-CI/1.0)',
+              }, method='POST')
           with urllib.request.urlopen(login_req, timeout=30) as response:
               login = json.load(response)
           if not login.get('admin') or not login.get('token'):
@@ -565,6 +569,7 @@ jobs:
               f'{base}/api/notices?product=SnishaperDroid', data=notice_payload,
               headers={
                   'Content-Type': 'application/json; charset=utf-8',
+                  'User-Agent': 'Mozilla/5.0 (compatible; SnishaperDroid-Release-CI/1.0)',
                   'Authorization': f"Bearer {login['token']}",
               }, method='POST')
           with urllib.request.urlopen(notice_req, timeout=30) as response:
