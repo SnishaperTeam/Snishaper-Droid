@@ -65,7 +65,7 @@ func TestAppLifecycleAndStatus(t *testing.T) {
 	if err := json.Unmarshal([]byte(app.GetBuildInfoJSON()), &buildInfo); err != nil {
 		t.Fatalf("parse build info: %v", err)
 	}
-	if buildInfo["coreVersion"] != "v0.8.4" {
+	if buildInfo["coreVersion"] != "v0.8.5" {
 		t.Fatalf("coreVersion = %v", buildInfo["coreVersion"])
 	}
 	if groups := app.GetSiteGroupsJSON(); groups != "[]" {
