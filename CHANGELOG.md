@@ -31,6 +31,15 @@ project adheres to the desktop SniShaper release cadence (`alpha` / `beta` / `rc
   channel, Go runtime and build platform.
 - Dashboard traffic counters (down / up) from the engine stats payload.
 - Configurable TUN MTU in Settings, applied by `TunVpnService` when the tunnel starts.
+- Announcements (desktop NoticeCenter port): dashboard banner + history modal with
+  level colors, pinned / expired / unread states, localized title/body, external links
+  and a disk-cache fallback chain (API → jsdelivr mirror → memory → `notices_cache.json`,
+  TTL 10 min), served from the new `SnishaperDroid` product channel via the
+  `GetNotices` bridge method; the Website backend gains the channel (store target, seed
+  document, admin product switch).
+- Release workflow publishes a `release-<tag>` release announcement to the
+  SnishaperDroid channel (body = the commit-list changelog, gated by the
+  `ANNOUNCEMENT_ADMIN_*` secrets, `continue-on-error`).
 
 ### Changed
 
@@ -52,6 +61,11 @@ project adheres to the desktop SniShaper release cadence (`alpha` / `beta` / `rc
   `.pre-migration.bak` backup it produces; `gen-defaults` stamps the version on regeneration.
 - Dependabot no longer auto-merges GitHub Actions updates (desktop policy parity): a new
   action major runs in CI with repository secrets before any human review.
+- Default rules regenerated with full fidelity from the desktop set: 226 site groups
+  (mitm 78 / tls-rf 118 / quic 9 / transparent 20 / direct 1) preserving mitm / quic
+  modes and the `sni_fake` / `cert_verify` / ECH fields; `gen-defaults` no longer
+  performs the CA-free cleanup (site groups pass through untouched, only the settings
+  keep their Android overrides).
 
 ### Removed
 
@@ -63,6 +77,6 @@ project adheres to the desktop SniShaper release cadence (`alpha` / `beta` / `rc
 
 ### Notes
 
-- Core engine pinned to `snishaper-core v0.8.4`; `minSdk = 24`, `compileSdk = 37.2`,
-  `targetSdk = 36`.
+- Core engine pinned to `snishaper-core v0.8.5` (MITM upstream SNI fix); `minSdk = 24`,
+  `compileSdk = 37.2`, `targetSdk = 36`.
 - Version aligned with the desktop app: `1.30.x`.

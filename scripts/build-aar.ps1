@@ -101,7 +101,7 @@ try {
     # --- 3) gomobile bind ---------------------------------------------------
     # -trimpath + -ldflags "-s -w" keep the AAR under GitHub's 100 MB file
     # limit (the unstripped 3-ABI build was ~134 MB, the stripped one ~70 MB)
-    # while preserving the same exported Java surface and CA-free guarantees.
+    # while preserving the same exported Java surface and full-fidelity guarantees.
     Write-Host "[build-aar] gomobile bind (this compiles three ABIs; expect a few minutes)"
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     & gomobile bind `

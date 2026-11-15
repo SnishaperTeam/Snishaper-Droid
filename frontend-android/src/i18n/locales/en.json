@@ -625,5 +625,20 @@
     "import_invalid": "Import failed: invalid profile bundle",
     "action_failed": "Action failed",
     "empty": "No profiles yet — create one from the current configuration"
+  },
+  "notices": {
+    "title": "Announcements",
+    "subtitle": "{count} announcements, newest first",
+    "pinned": "Pinned",
+    "expired": "Expired",
+    "empty": "No announcements",
+    "refresh": "Refresh",
+    "close": "Close",
+    "view_all": "View all",
+    "mark_read": "Mark as read",
+    "more_unread": "{count} more unread",
+    "history_entry": "All announcements · {count}",
+    "stale": "Announcement service unreachable, showing cached content",
+    "link_default": "Learn more"
   }
 }

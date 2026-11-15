@@ -1,0 +1,242 @@
+package mobile
+
+import (
+	"context"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// Notices are ported from the desktop app (app/app_notices.go): same models,
+// cache file name and fallback chain. Differences: the product channel is
+// SnishaperDroid, there is no system-proxy source (Android has no sysproxy)
+// and the result crosses the gomobile bridge as a JSON string.
+
+const (
+	noticesEndpoint       = "https://jetcpp.ccwu.cc/api/notices?all=1&product=SnishaperDroid"
+	noticesMirrorEndpoint = "https://cdn.jsdelivr.net/gh/SnishaperTeam/Website@main/build/vue-app/notices/SnishaperDroid.json"
+	noticesCacheTTL       = 10 * time.Minute
+	noticesTimeout        = 8 * time.Second
+	noticesCacheName      = "notices_cache.json"
+)
+
+type Notice struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	TitleEN     string `json:"title_en,omitempty"`
+	TitleRU     string `json:"title_ru,omitempty"`
+	Body        string `json:"body"`
+	BodyEN      string `json:"body_en,omitempty"`
+	BodyRU      string `json:"body_ru,omitempty"`
+	Level       string `json:"level"`
+	PublishedAt string `json:"published_at"`
+	ExpiresAt   string `json:"expires_at,omitempty"`
+	Link        string `json:"link,omitempty"`
+	LinkText    string `json:"link_text,omitempty"`
+	Pinned      bool   `json:"pinned"`
+}
+
+type NoticesPayload struct {
+	Version   int      `json:"version"`
+	UpdatedAt string   `json:"updated_at"`
+	Notices   []Notice `json:"notices"`
+	FetchedAt int64    `json:"fetched_at"`
+	Source    string   `json:"source"`
+	Cached    bool     `json:"cached"`
+	Stale     bool     `json:"stale"`
+	Error     string   `json:"error,omitempty"`
+}
+
+type noticeSource struct {
+	name string
+	url  string
+}
+
+// GetNoticesJSON returns the SnishaperDroid announcement payload: live API →
+// jsdelivr mirror → memory cache → disk cache (stale), TTL 10 minutes.
+func (a *App) GetNoticesJSON(force bool) (out string) {
+	defer recoverString(&out)
+	payload, err := a.getNotices(force)
+	if err != nil {
+		return marshalJSON(NoticesPayload{Notices: []Notice{}, Error: err.Error()})
+	}
+	return marshalJSON(payload)
+}
+
+func (a *App) getNotices(force bool) (*NoticesPayload, error) {
+	a.noticesMu.Lock()
+	if !force && a.noticesPayload != nil && time.Since(a.noticesFetched) < noticesCacheTTL {
+		cached := *a.noticesPayload
+		cached.Cached = true
+		cached.Stale = false
+		cached.Error = ""
+		a.noticesMu.Unlock()
+		return &cached, nil
+	}
+	a.noticesMu.Unlock()
+
+	payload, err := a.fetchNotices()
+	if err != nil {
+		fallback := a.cachedNoticesSnapshot()
+		if fallback == nil {
+			return nil, err
+		}
+		out := *fallback
+		out.Cached = true
+		out.Stale = true
+		out.Error = err.Error()
+		a.noticesMu.Lock()
+		a.noticesPayload = fallback
+		a.noticesFetched = time.Now().Add(-noticesCacheTTL / 2)
+		a.noticesMu.Unlock()
+		return &out, nil
+	}
+
+	a.noticesMu.Lock()
+	a.noticesPayload = payload
+	a.noticesFetched = time.Now()
+	a.noticesMu.Unlock()
+	a.saveNoticesCache(payload)
+	return payload, nil
+}
+
+func (a *App) cachedNoticesSnapshot() *NoticesPayload {
+	if a.noticesPayload != nil {
+		return a.noticesPayload
+	}
+	return a.loadNoticesCache()
+}
+
+func (a *App) noticeSources() []noticeSource {
+	// Android has no system proxy integration: the API is fetched directly.
+	return []noticeSource{
+		{name: "api", url: noticesEndpoint},
+		{name: "mirror", url: noticesMirrorEndpoint},
+	}
+}
+
+func (a *App) fetchNotices() (*NoticesPayload, error) {
+	failures := make([]string, 0, 2)
+	for _, source := range a.noticeSources() {
+		payload, err := a.fetchNoticeSource(source)
+		if err == nil {
+			return payload, nil
+		}
+		failures = append(failures, fmt.Sprintf("%s: %v", source.name, err))
+	}
+	message := strings.Join(failures, " | ")
+	if len(message) > 400 {
+		message = message[:400] + "…"
+	}
+	return nil, fmt.Errorf("公告服务不可达（%s）", message)
+}
+
+func (a *App) fetchNoticeSource(source noticeSource) (*NoticesPayload, error) {
+	transport := &http.Transport{
+		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
+		TLSHandshakeTimeout: 6 * time.Second,
+		ForceAttemptHTTP2:   true,
+	}
+	client := &http.Client{Timeout: noticesTimeout, Transport: transport}
+	defer transport.CloseIdleConnections()
+
+	ctx, cancel := context.WithTimeout(context.Background(), noticesTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, source.url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Snishaper-Droid/"+engineVersion)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+	var envelope struct {
+		OK        *bool    `json:"ok"`
+		Version   int      `json:"version"`
+		UpdatedAt string   `json:"updated_at"`
+		Notices   []Notice `json:"notices"`
+		Error     string   `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %w", err)
+	}
+	if envelope.OK != nil && !*envelope.OK {
+		message := envelope.Error
+		if message == "" {
+			message = "服务返回错误"
+		}
+		return nil, fmt.Errorf("%s", message)
+	}
+	notices := envelope.Notices
+	if notices == nil {
+		notices = []Notice{}
+	}
+	return &NoticesPayload{
+		Version:   envelope.Version,
+		UpdatedAt: envelope.UpdatedAt,
+		Notices:   notices,
+		FetchedAt: time.Now().Unix(),
+		Source:    source.name,
+	}, nil
+}
+
+func (a *App) noticesCachePath() string {
+	if a.dataDir == "" {
+		return ""
+	}
+	return filepath.Join(a.dataDir, "config", noticesCacheName)
+}
+
+func (a *App) loadNoticesCache() *NoticesPayload {
+	path := a.noticesCachePath()
+	if path == "" {
+		return nil
+	}
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var payload NoticesPayload
+	if err := json.Unmarshal(blob, &payload); err != nil {
+		return nil
+	}
+	if payload.Notices == nil {
+		payload.Notices = []Notice{}
+	}
+	payload.Source = "disk-cache"
+	return &payload
+}
+
+func (a *App) saveNoticesCache(payload *NoticesPayload) {
+	path := a.noticesCachePath()
+	if path == "" || payload == nil {
+		return
+	}
+	blob, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return
+	}
+	_ = os.WriteFile(path, blob, 0o644)
+}

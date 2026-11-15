@@ -27,6 +27,7 @@ import {
   EventsOn
 } from '../api/bindings';
 import Modal from '../components/Modal';
+import NoticeCenter from '../components/NoticeCenter';
 import { toast } from '../lib/toast';
 import { extractErrorMessage } from '../lib/utils';
 import { useTranslation } from '../i18n/I18nContext';
@@ -266,6 +267,7 @@ const Dashboard: React.FC = () => {
       </Box>
 
       <Box sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', width: '100%', pb: 6 }}>
+        <NoticeCenter />
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
             <Box className="ss-card-hover" sx={{ p: 3, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, boxShadow: 1 }}>

@@ -8,7 +8,8 @@ import java.io.File
  *
  * The Go wrapper expects `<filesDir>/config/settings.json` and
  * `<filesDir>/rules/config.json` (see docs/android-bridge-api.md §2). The APK ships
- * CA-free defaults under `assets/defaults/`; they are copied once and never
+ * full-fidelity desktop defaults (mitm/quic modes, sni_fake/cert_verify/ECH fields
+ * preserved) under `assets/defaults/`; they are copied once and never
  * overwritten afterwards (the Go engine persists user changes back to the same
  * files).
  */

@@ -27,7 +27,7 @@ const (
 	// the version bump; "release" dispatches are written as "stable".
 	releaseChannel = "alpha"
 	// coreVersion is the pinned snishaper-core release (see go.mod).
-	coreVersion = "v0.8.4"
+	coreVersion = "v0.8.5"
 
 	proxyModeRule        = ""
 	proxyModeTransparent = "transparent"
@@ -71,6 +71,10 @@ type App struct {
 	evoPollStop   chan struct{}
 	evoRunning    bool
 	lastTaskJSON  string
+
+	noticesMu       sync.Mutex
+	noticesPayload  *NoticesPayload
+	noticesFetched  time.Time
 }
 
 // NewApp creates the controller. dataDir must be an absolute app private

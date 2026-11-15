@@ -98,6 +98,8 @@ export const GetAppVersion = () => appCall('GetAppVersion');
 
 export const GetBuildInfo = () => appCall('GetBuildInfo');
 
+export const GetNotices = (force: boolean) => appCall('GetNotices', force);
+
 export const GetTUNConfig = () => appCall('GetTUNConfig');
 
 export const UpdateTUNConfig = (cfg: any) => appCall('UpdateTUNConfig', cfg);

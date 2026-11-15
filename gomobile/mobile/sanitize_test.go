@@ -84,8 +84,8 @@ func TestCommittedDefaultsAreValid(t *testing.T) {
 	if err := json.Unmarshal(rulesRaw, &rulesConfig); err != nil {
 		t.Fatalf("parse defaults rules: %v", err)
 	}
-	if len(rulesConfig.SiteGroups) != 222 {
-		t.Fatalf("defaults site groups = %d, want 222", len(rulesConfig.SiteGroups))
+	if len(rulesConfig.SiteGroups) != 226 {
+		t.Fatalf("defaults site groups = %d, want 226", len(rulesConfig.SiteGroups))
 	}
 	if rulesConfig.ConfigVersion != proxy.CurrentConfigVersion {
 		t.Fatalf("defaults rules config_version = %d, want %d", rulesConfig.ConfigVersion, proxy.CurrentConfigVersion)

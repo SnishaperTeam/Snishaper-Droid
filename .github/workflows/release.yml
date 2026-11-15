@@ -404,7 +404,8 @@ jobs:
           retention-days: 14
 
   # ------------------------------------------------------------------
-  # Publish: commit-list changelog (no AI summary) + GitHub Release.
+  # Publish: commit-list changelog (no AI summary) + GitHub Release
+  # + release announcement to the SnishaperDroid notice channel.
   # ------------------------------------------------------------------
   publish:
     name: Publish release
@@ -412,6 +413,10 @@ jobs:
     if: needs.bump.outputs.skip != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 30
+    env:
+      ANNOUNCEMENT_READY: ${{ secrets.ANNOUNCEMENT_ADMIN_EMAIL != '' && secrets.ANNOUNCEMENT_ADMIN_PASSWORD != '' }}
+      ANNOUNCEMENT_ADMIN_EMAIL: ${{ secrets.ANNOUNCEMENT_ADMIN_EMAIL }}
+      ANNOUNCEMENT_ADMIN_PASSWORD: ${{ secrets.ANNOUNCEMENT_ADMIN_PASSWORD }}
 
     steps:
       - name: Checkout full history
@@ -487,3 +492,84 @@ jobs:
             release-assets/SIGNING.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release announcement
+        if: env.ANNOUNCEMENT_READY == 'true'
+        continue-on-error: true
+        env:
+          VERSION: ${{ needs.bump.outputs.version }}
+          TAG: ${{ needs.bump.outputs.tag }}
+          PRERELEASE: ${{ inputs.channel != 'release' }}
+        run: |
+          set -euo pipefail
+          # Announcement body = the commit-list changelog section of
+          # RELEASE_NOTES.md (no AI summary). Id release-<tag> is idempotent:
+          # re-running a release replaces the same notice.
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          from datetime import datetime, timezone
+
+          base = 'https://jetcpp.ccwu.cc'
+          version = os.environ['VERSION']
+          tag = os.environ['TAG']
+          prerelease = os.environ['PRERELEASE'] == 'true'
+          link = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/tag/{tag}"
+
+          changes = ''
+          try:
+              notes = open('RELEASE_NOTES.md', encoding='utf-8').read()
+              match = re.search(r'^## 变更 / Changelog\s*\n(.*?)(?=^## |\Z)', notes, re.S | re.M)
+              if match:
+                  changes = match.group(1).strip()
+              if not changes:
+                  changes = notes.strip()
+          except OSError:
+              pass
+          if not changes:
+              changes = f'Snishaper-Droid {version}'
+          if len(changes) > 1600:
+              changes = changes[:1600].rstrip() + '...'
+
+          body = f"本次更新内容：\n{changes}\n\n完整更新日志与下载资产见本次发版页面：{link}"
+          body_en = f"What's new in this release:\n{changes}\n\nFull release notes and downloadable assets: {link}"
+          body_ru = f"Что нового в этом выпуске:\n{changes}\n\nПолные примечания и файлы выпуска: {link}"
+
+          login_payload = json.dumps({
+              'email': os.environ['ANNOUNCEMENT_ADMIN_EMAIL'],
+              'password': os.environ['ANNOUNCEMENT_ADMIN_PASSWORD'],
+          }).encode('utf-8')
+          login_req = urllib.request.Request(
+              f'{base}/api/admin/session', data=login_payload,
+              headers={'Content-Type': 'application/json; charset=utf-8'}, method='POST')
+          with urllib.request.urlopen(login_req, timeout=30) as response:
+              login = json.load(response)
+          if not login.get('admin') or not login.get('token'):
+              raise RuntimeError('admin login failed')
+
+          notice = {
+              'id': f'release-{tag}',
+              'title': f'Snishaper-Droid {version} 发布',
+              'title_en': f'Snishaper-Droid {version} released',
+              'title_ru': f'Выпущен Snishaper-Droid {version}',
+              'body': body,
+              'body_en': body_en,
+              'body_ru': body_ru,
+              'level': 'info' if prerelease else 'important',
+              'published_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+              'link': link,
+              'link_text': '查看本次发行说明',
+              'pinned': False,
+          }
+          notice_payload = json.dumps(notice, ensure_ascii=False).encode('utf-8')
+          notice_req = urllib.request.Request(
+              f'{base}/api/notices?product=SnishaperDroid', data=notice_payload,
+              headers={
+                  'Content-Type': 'application/json; charset=utf-8',
+                  'Authorization': f"Bearer {login['token']}",
+              }, method='POST')
+          with urllib.request.urlopen(notice_req, timeout=30) as response:
+              result = json.load(response)
+          if not result.get('ok'):
+              raise RuntimeError('announcement publish failed')
+          print(f"::notice::announcement published for {tag} (id release-{tag}, link {link})")
+          PY

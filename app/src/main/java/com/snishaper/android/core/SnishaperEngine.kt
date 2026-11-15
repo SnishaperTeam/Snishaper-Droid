@@ -22,8 +22,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Process-wide singleton around the gomobile AAR (`com.snishaper.core.mobile.App`).
  *
- * The Go engine is CA-free: start it once (Application.onCreate). All complex
- * payloads are JSON strings passed through to the WebView bridge untouched.
+ * The Go engine carries the full desktop feature surface: start it once
+ * (Application.onCreate). All complex payloads are JSON strings passed
+ * through to the WebView bridge untouched.
  */
 object SnishaperEngine {
 

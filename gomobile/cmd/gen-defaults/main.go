@@ -1,6 +1,11 @@
 // Command gen-defaults converts the desktop default rules/config into the
-// CA-free Android defaults and writes them to the app assets directory (the
-// single committed copy, consumed by AssetSeeder and sanitize_test.go).
+// Android defaults and writes them to the app assets directory (the single
+// committed copy, consumed by AssetSeeder and sanitize_test.go).
+//
+// The rules snapshot is migrated with full fidelity: mitm / quic modes and
+// the sni_fake / cert_verify / ECH fields are preserved as-is. Only the
+// settings are overridden with the Android platform defaults (smart routing
+// off, migration off, Cloudflare auto-update off).
 //
 // It is a one-off migration tool committed for reproducibility. It never
 // modifies the desktop repository and never touches snishaper-core.
@@ -21,7 +26,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SnishaperTeam/snishaper-core/config"
 	"github.com/SnishaperTeam/snishaper-core/proxy"
 )
 
@@ -44,7 +48,7 @@ func main() {
 		fatal("parse desktop rules: %v", err)
 	}
 
-	rewritten, cleared := sanitizeRulesConfig(&remote)
+	// Full-fidelity migration: site groups pass through untouched.
 	remote.ConfigVersion = proxy.CurrentConfigVersion
 	rulesJSON, err := json.MarshalIndent(remote, "", "  ")
 	if err != nil {
@@ -99,73 +103,15 @@ func main() {
 		fatal("write settings.json to %s: %v", dir, err)
 	}
 
-	mitm, quic, other := 0, 0, 0
+	modes := make(map[string]int)
 	for _, group := range remote.SiteGroups {
-		switch strings.ToLower(strings.TrimSpace(group.Mode)) {
-		case "tls-rf":
-			other++
-		case "transparent":
-			other++
-		case "direct":
-			other++
-		default:
-			mitm++
-		}
+		modes[strings.ToLower(strings.TrimSpace(group.Mode))]++
 	}
 	fmt.Printf("desktop site groups     : %d\n", len(remote.SiteGroups))
-	fmt.Printf("rewritten rules         : %d (%d mode rewrites + CA field clears)\n", rewritten, cleared)
-	fmt.Printf("resulting modes         : tls-rf/transparent/direct=%d, unexpected=%d\n", other, mitm+quic)
+	fmt.Printf("mode distribution       : mitm=%d tls-rf=%d quic=%d transparent=%d direct=%d\n",
+		modes["mitm"], modes["tls-rf"], modes["quic"], modes["transparent"], modes["direct"])
 	fmt.Printf("upstreams/dns/ech/nat64 : %d / %d / %d / %d\n", len(remote.Upstreams), len(remote.DNSNodes), len(remote.ECHProfiles), len(remote.NAT64Profiles))
 	fmt.Printf("written                 : %s\n", *assetsDir)
-}
-
-// sanitizeRulesConfig rewrites the rules snapshot in place and reports the
-// number of modified rules plus the number of rules whose mode was rewritten.
-func sanitizeRulesConfig(rc *proxy.RulesConfig) (rewritten int, modeRewrites int) {
-	for i := range rc.SiteGroups {
-		group := &rc.SiteGroups[i]
-		changed := false
-		switch strings.ToLower(strings.TrimSpace(group.Mode)) {
-		case "tls-rf", "transparent", "direct":
-			group.Mode = strings.ToLower(strings.TrimSpace(group.Mode))
-		default:
-			group.Mode = "tls-rf"
-			changed = true
-			modeRewrites++
-		}
-		if group.SniFake != "" {
-			group.SniFake = ""
-			changed = true
-		}
-		if !group.CertVerify.IsZero() {
-			group.CertVerify = config.CertVerifyConfig{}
-			changed = true
-		}
-		if group.ECHEnabled {
-			group.ECHEnabled = false
-			changed = true
-		}
-		if group.ECHProfileID != "" {
-			group.ECHProfileID = ""
-			changed = true
-		}
-		if group.ECHDomain != "" {
-			group.ECHDomain = ""
-			changed = true
-		}
-		if group.ECHDiscoveryDomain != "" {
-			group.ECHDiscoveryDomain = ""
-			changed = true
-		}
-		if group.ECHDoHUpstream != "" {
-			group.ECHDoHUpstream = ""
-			changed = true
-		}
-		if changed {
-			rewritten++
-		}
-	}
-	return rewritten, modeRewrites
 }
 
 func fatal(format string, args ...any) {

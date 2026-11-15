@@ -179,7 +179,7 @@ def main() -> int:
         print("\n[2/5] jni ABIs")
         check_abis(names, required_abis)
 
-        print("\n[3/5] classes.jar surface (App + Listener, CA-free)")
+        print("\n[3/5] classes.jar surface (App + Listener, JSON passthrough)")
         check_classes(classes_jar)
 
         print("\n[4/5] certificate files")
@@ -194,7 +194,7 @@ def main() -> int:
         for problem in PROBLEMS:
             print(f"  - {problem}")
         return 1
-    print("PASS  AAR matches the CA-free Android bridge contract")
+    print("PASS  AAR matches the full-fidelity Android bridge contract")
     return 0
 
 

@@ -10,7 +10,7 @@ import org.json.JSONObject
 
 /**
  * Serves the desktop frontend's `Call.ByName("snishaper/app.App.<Name>")` calls
- * on top of the CA-free gomobile AAR.
+ * on top of the gomobile AAR (full desktop feature surface).
  *
  * ## Transport contract
  * Verified against `@wailsio/runtime/dist/runtime.js`:
@@ -151,6 +151,9 @@ internal class EngineBridge(private val webView: WebView) {
             "SetListenPort" -> { app.setListenPort(a.int(0)); null }
             "GetProxyMode" -> app.proxyMode
             "GetStats" -> parse(app.statsJSON)
+
+            // ---- notices (SnishaperDroid announcement channel) ------
+            "GetNotices" -> parse(app.getNoticesJSON(a.bool(0)))
 
             // ---- status / logs ---------------------------------------
             "GetIPv6Available" -> app.getIPv6Available()

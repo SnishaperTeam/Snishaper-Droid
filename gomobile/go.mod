@@ -3,7 +3,7 @@ module github.com/SnishaperTeam/snishaper-droid/gomobile
 go 1.27.0
 
 require (
-	github.com/SnishaperTeam/snishaper-core v0.8.4
+	github.com/SnishaperTeam/snishaper-core v0.8.5
 	github.com/sagernet/sing v0.9.6
 	github.com/sagernet/sing-tun v0.9.6
 )
@@ -97,7 +97,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.27 // indirect
 	github.com/pires/go-proxyproto v0.8.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/quic-go/quic-go v0.64.1 // indirect
+	github.com/quic-go/quic-go v0.65.0 // indirect
 	github.com/rasky/go-lzo v0.0.0-20200203143853-96a758eda86e // indirect
 	github.com/refraction-networking/utls v1.8.2 // indirect
 	github.com/safchain/ethtool v0.3.0 // indirect
