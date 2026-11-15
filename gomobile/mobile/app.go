@@ -73,7 +73,7 @@ type App struct {
 	lastTaskJSON  string
 
 	noticesMu       sync.Mutex
-	noticesPayload  *NoticesPayload
+	noticesPayload  *noticesPayload
 	noticesFetched  time.Time
 }
 

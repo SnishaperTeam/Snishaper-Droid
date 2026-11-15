@@ -26,7 +26,7 @@ const (
 	noticesCacheName      = "notices_cache.json"
 )
 
-type Notice struct {
+type notice struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
 	TitleEN     string `json:"title_en,omitempty"`
@@ -42,10 +42,10 @@ type Notice struct {
 	Pinned      bool   `json:"pinned"`
 }
 
-type NoticesPayload struct {
+type noticesPayload struct {
 	Version   int      `json:"version"`
 	UpdatedAt string   `json:"updated_at"`
-	Notices   []Notice `json:"notices"`
+	Notices   []notice `json:"notices"`
 	FetchedAt int64    `json:"fetched_at"`
 	Source    string   `json:"source"`
 	Cached    bool     `json:"cached"`
@@ -64,12 +64,12 @@ func (a *App) GetNoticesJSON(force bool) (out string) {
 	defer recoverString(&out)
 	payload, err := a.getNotices(force)
 	if err != nil {
-		return marshalJSON(NoticesPayload{Notices: []Notice{}, Error: err.Error()})
+		return marshalJSON(noticesPayload{Notices: []notice{}, Error: err.Error()})
 	}
 	return marshalJSON(payload)
 }
 
-func (a *App) getNotices(force bool) (*NoticesPayload, error) {
+func (a *App) getNotices(force bool) (*noticesPayload, error) {
 	a.noticesMu.Lock()
 	if !force && a.noticesPayload != nil && time.Since(a.noticesFetched) < noticesCacheTTL {
 		cached := *a.noticesPayload
@@ -106,7 +106,7 @@ func (a *App) getNotices(force bool) (*NoticesPayload, error) {
 	return payload, nil
 }
 
-func (a *App) cachedNoticesSnapshot() *NoticesPayload {
+func (a *App) cachedNoticesSnapshot() *noticesPayload {
 	if a.noticesPayload != nil {
 		return a.noticesPayload
 	}
@@ -121,7 +121,7 @@ func (a *App) noticeSources() []noticeSource {
 	}
 }
 
-func (a *App) fetchNotices() (*NoticesPayload, error) {
+func (a *App) fetchNotices() (*noticesPayload, error) {
 	failures := make([]string, 0, 2)
 	for _, source := range a.noticeSources() {
 		payload, err := a.fetchNoticeSource(source)
@@ -137,7 +137,7 @@ func (a *App) fetchNotices() (*NoticesPayload, error) {
 	return nil, fmt.Errorf("公告服务不可达（%s）", message)
 }
 
-func (a *App) fetchNoticeSource(source noticeSource) (*NoticesPayload, error) {
+func (a *App) fetchNoticeSource(source noticeSource) (*noticesPayload, error) {
 	transport := &http.Transport{
 		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
 		TLSHandshakeTimeout: 6 * time.Second,
@@ -173,7 +173,7 @@ func (a *App) fetchNoticeSource(source noticeSource) (*NoticesPayload, error) {
 		OK        *bool    `json:"ok"`
 		Version   int      `json:"version"`
 		UpdatedAt string   `json:"updated_at"`
-		Notices   []Notice `json:"notices"`
+		Notices   []notice `json:"notices"`
 		Error     string   `json:"error"`
 	}
 	if err := json.Unmarshal(raw, &envelope); err != nil {
@@ -188,9 +188,9 @@ func (a *App) fetchNoticeSource(source noticeSource) (*NoticesPayload, error) {
 	}
 	notices := envelope.Notices
 	if notices == nil {
-		notices = []Notice{}
+		notices = []notice{}
 	}
-	return &NoticesPayload{
+	return &noticesPayload{
 		Version:   envelope.Version,
 		UpdatedAt: envelope.UpdatedAt,
 		Notices:   notices,
@@ -206,7 +206,7 @@ func (a *App) noticesCachePath() string {
 	return filepath.Join(a.dataDir, "config", noticesCacheName)
 }
 
-func (a *App) loadNoticesCache() *NoticesPayload {
+func (a *App) loadNoticesCache() *noticesPayload {
 	path := a.noticesCachePath()
 	if path == "" {
 		return nil
@@ -215,18 +215,18 @@ func (a *App) loadNoticesCache() *NoticesPayload {
 	if err != nil {
 		return nil
 	}
-	var payload NoticesPayload
+	var payload noticesPayload
 	if err := json.Unmarshal(blob, &payload); err != nil {
 		return nil
 	}
 	if payload.Notices == nil {
-		payload.Notices = []Notice{}
+		payload.Notices = []notice{}
 	}
 	payload.Source = "disk-cache"
 	return &payload
 }
 
-func (a *App) saveNoticesCache(payload *NoticesPayload) {
+func (a *App) saveNoticesCache(payload *noticesPayload) {
 	path := a.noticesCachePath()
 	if path == "" || payload == nil {
 		return
