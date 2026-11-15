@@ -95,7 +95,7 @@
 - [X] T019 [P] [US6] 检查 Droid 仓库文档中已过时的 "CA-free defaults" 表述并更新（`README.md`、`README_EN.md`、`docs/` 若有提及，改为"完整保真默认规则"表述；EngineBridge.kt 头注释中的 "CA-free gomobile AAR" 一并修正）
 - [X] T020 [P] [US6] 桌面版仓库提交：将工作区 3 处已修改文件（`app\app_notices.go`、`.github\workflows\_release_pipeline.yml`、`docs\portable-updater.md`）提交，提交信息 `feat(notices): scope the announcement endpoints to the snishaper product`
 - [X] T021 [P] [US6] Web 仓库提交：T009–T012 的新通道改动 + 工作区已有 2 处 admin-auth 改动，提交信息 `feat(notices): add SnishaperDroid product channel`
-- [ ] T022 [US6] Droid 仓库提交：全部本次改动（代码 + `spec/` 规格文档），按仓库风格拆分——`feat(android): port the desktop notices feature and add the SnishaperDroid announcement channel`（代码一条，spec 文档可并入或单独 `docs(spec)` 一条）
+- [X] T022 [US6] Droid 仓库提交：全部本次改动（代码 + `spec/` 规格文档），按仓库风格拆分——`feat(android): port the desktop notices feature and add the SnishaperDroid announcement channel`（代码一条，spec 文档可并入或单独 `docs(spec)` 一条）
 
 ---
 
