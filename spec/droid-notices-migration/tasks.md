@@ -72,7 +72,7 @@
 **Independent Test**: 重新生成的 rules.json 分组数 226、含 mitm/quic 与 sni_fake 字段；`go test` 通过
 
 - [X] T014b [US4] `Droid\gomobile\cmd\gen-defaults\main.go`：移除 `sanitizeRulesConfig` 中 site_groups 的 CA-free 清洗逻辑（取消 mitm/quic→tls-rf 的 mode 改写、取消 sni_fake/cert_verify/ECH 系列字段剥离；保留 settings 的安卓覆盖逻辑不变），更新文件头注释与打印文案（不再是 "CA-free"）
-- [X] T015 [US4] 用更新后的 gen-defaults 重新生成默认规则：`go run ./cmd/gen-defaults -desktop-rules "D:\c++\Contributions\SniShaper-main\rules\config.json" -desktop-settings "D:\c++\Contributions\SniShaper-main\config\settings.json" -assets "..\..\app\src\main\assets\defaults"`（在 `Droid\gomobile` 目录执行），确认产物 `Droid\app\src\main\assets\defaults\rules.json` 为 226 组、模式分布 mitm 78 / tls-rf 118 / quic 9 / transparent 20 / direct 1、含 sni_fake 与 cert_verify 字段、config_version 1
+- [X] T015 [US4] 用更新后的 gen-defaults 重新生成默认规则：`go run ./cmd/gen-defaults -desktop-rules "D:\c++\Contributions\SniShaper-main\rules\config.json" -desktop-settings "D:\c++\Contributions\SniShaper-main\config\settings.json" -assets "..\app\src\main\assets\defaults"`（在 `Droid\gomobile` 目录执行），确认产物 `Droid\app\src\main\assets\defaults\rules.json` 为 226 组、模式分布 mitm 78 / tls-rf 118 / quic 9 / transparent 20 / direct 1、含 sni_fake 与 cert_verify 字段、config_version 1
 - [X] T016 [US4] `Droid\gomobile\mobile\sanitize_test.go`：默认规则分组数断言 `222` → `226`
 
 ---
@@ -105,12 +105,12 @@
 
 **Purpose**: 构建/测试/提交完整性验证（不推送、不装机 UI 验证——按用户选择的 build-only 范围）
 
-- [ ] T023 构建验证（gomobile）：在 `Droid\gomobile` 执行 `go build ./...` 与 `go test ./...`，修复所有编译/测试错误直到通过（重点：notices.go 编译、sanitize_test 226 断言、app_test 对 testdata 的兼容）
-- [ ] T024 构建验证（前端）：在 `Droid\frontend-android` 执行 `npm run build`（tsc + vite），修复所有类型/构建错误直到通过（重点：NoticeCenter.tsx 类型、i18n 键完整性、Dashboard 挂载）
-- [ ] T025 构建验证（Android 全链路）：按 `Droid\scripts` 现有脚本重建 gomobile AAR 并执行 `gradlew assembleDebug`（验证 EngineBridge 分派与 Kotlin 编译链路；若本机缺少 gomobile/NDK 工具链，记录说明并以 T023/T024 为准）
-- [ ] T026 构建验证（Web）：对 `Web` 仓库的 functions TypeScript 运行类型检查（若仓库配置了相应脚本则执行；否则用 tsc --noEmit 对改动文件所在项目做最小验证）
-- [ ] T027 提交完整性验证：三仓库分别 `git status`（本次范围内无未提交残留）+ `git log -1 --stat` 核对提交内容；确认三仓库均未 push（`git status` 无 ahead 提示或提示用户推送时机）
-- [ ] T028 secrets 验证：`gh secret list --repo SnishaperTeam/snishaper-droid` 确认 ANNOUNCEMENT_ADMIN_EMAIL / ANNOUNCEMENT_ADMIN_PASSWORD 存在
+- [X] T023 构建验证（gomobile）：在 `Droid\gomobile` 执行 `go build ./...` 与 `go test ./...`，修复所有编译/测试错误直到通过（重点：notices.go 编译、sanitize_test 226 断言、app_test 对 testdata 的兼容）— PASS（修复 rules.json 未重生成/app_test v0.8.4 断言，提交 f7f2b7d）
+- [X] T024 构建验证（前端）：在 `Droid\frontend-android` 执行 `npm run build`（tsc + vite），修复所有类型/构建错误直到通过（重点：NoticeCenter.tsx 类型、i18n 键完整性、Dashboard 挂载）— PASS
+- [X] T025 构建验证（Android 全链路）：按 `Droid\scripts` 现有脚本重建 gomobile AAR 并执行 `gradlew assembleDebug`（验证 EngineBridge 分派与 Kotlin 编译链路；若本机缺少 gomobile/NDK 工具链，记录说明并以 T023/T024 为准）— PASS（AAR 3 ABI 75.2MB + BUILD SUCCESSFUL）
+- [X] T026 构建验证（Web）：对 `Web` 仓库的 functions TypeScript 运行类型检查（若仓库配置了相应脚本则执行；否则用 tsc --noEmit 对改动文件所在项目做最小验证）— PASS（改动文件零错误）
+- [X] T027 提交完整性验证：三仓库分别 `git status`（本次范围内无未提交残留）+ `git log -1 --stat` 核对提交内容；确认三仓库均未 push（`git status` 无 ahead 提示或提示用户推送时机）— PASS（Droid 4 commits / Web 1 / 桌面版 1，均未 push）
+- [X] T028 secrets 验证：`gh secret list --repo SnishaperTeam/snishaper-droid` 确认 ANNOUNCEMENT_ADMIN_EMAIL / ANNOUNCEMENT_ADMIN_PASSWORD 存在 — PASS
 
 ---
 
