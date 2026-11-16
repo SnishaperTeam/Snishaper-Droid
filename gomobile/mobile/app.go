@@ -21,7 +21,7 @@ import (
 const (
 	// engineVersion is shown on the About / Settings pages. The release
 	// workflow's bot commits bumps here (see .github/workflows/release.yml).
-	engineVersion = "1.0.0"
+	engineVersion = "1.30.3.2"
 	// releaseChannel is the distribution channel shown on the About page
 	// (stable | alpha | beta | rc). The release bot commits it together with
 	// the version bump; "release" dispatches are written as "stable".
