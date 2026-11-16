@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "主版本号（如 1.30.0）。bot 自动提交到 gradle / 后端 / 前端；留空沿用当前版本"
+        description: "主版本号（如 1.30.0，或与桌面端对齐的四段热修 1.30.3.2）。bot 自动提交到 gradle / 后端 / 前端；留空沿用当前版本"
         required: false
         type: string
         default: ""
@@ -105,8 +105,11 @@ jobs:
 
           version="$base"
           if [ -n "$INPUT_VERSION" ]; then
-            if ! printf '%s' "$INPUT_VERSION" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
-              echo "::error::invalid version '${INPUT_VERSION}' (expected e.g. 1.30.0)"
+            # A fourth hotfix part (e.g. 1.30.3.2) is accepted for version
+            # parity with the desktop releases; gradle's versionCode
+            # derivation ignores it, so it never moves the Play code.
+            if ! printf '%s' "$INPUT_VERSION" | grep -Eq '^[0-9]+(\.[0-9]+){0,3}$'; then
+              echo "::error::invalid version '${INPUT_VERSION}' (expected e.g. 1.30.0 or 1.30.3.2)"
               exit 1
             fi
             version="$INPUT_VERSION"
