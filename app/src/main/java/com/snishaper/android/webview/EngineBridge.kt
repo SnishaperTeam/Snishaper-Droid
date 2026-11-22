@@ -149,6 +149,8 @@ internal class EngineBridge(private val webView: WebView) {
             "IsProxyRunning" -> app.isProxyRunning
             "GetListenPort" -> JSONObject(app.statusJSON).optInt("listenPort", 0)
             "SetListenPort" -> { app.setListenPort(a.int(0)); null }
+            "GetListenAddress" -> app.getListenAddress()
+            "SetListenAddress" -> { app.setListenAddress(a.string(0)); null }
             "GetProxyMode" -> app.proxyMode
             "GetStats" -> parse(app.statsJSON)
 
