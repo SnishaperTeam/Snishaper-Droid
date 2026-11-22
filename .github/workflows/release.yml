@@ -20,7 +20,8 @@
 #     bot 只提交 versionName，versionCode 自动单调递增。
 #
 # 更新日志：不做 AI 总结，直接列提交：
-#   - <提交标题> by @<GitHub 登录名> in `<7 位短 sha>`（反引号包裹，GitHub 自动链接）；
+#   - <提交标题> by @<GitHub 登录名> in [`<7 位短 sha>`](commit 链接)（短 sha 不会被
+#     GitHub 自动链接，必须显式链接才能跳转）；
 #     基线为上一个正式（非 prerelease）Release 的 tag——预发布同样只对比上一个正式版，
 #     登录名按 commit 逐个经 GitHub API 解析（git 作者名不是登录名，直接 @ 会提到无关账号）。
 # =============================================================================
@@ -468,7 +469,7 @@ jobs:
           COMMITS="$(git log -n 200 --pretty=format:'%H%x09%s' ${RANGE} | while IFS=$'\t' read -r sha subject; do
             login="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}" --jq '.author.login // empty' 2>/dev/null || true)"
             if [ -n "$login" ]; then by="@${login}"; else by="$(git log -1 --pretty=format:%an "${sha}")"; fi
-            echo "- ${subject} by ${by} in \`${sha:0:7}\`"
+            echo "- ${subject} by ${by} in [\`${sha:0:7}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${sha})"
           done)"
           {
             echo "# Snishaper-Droid ${VERSION}（Android）"
