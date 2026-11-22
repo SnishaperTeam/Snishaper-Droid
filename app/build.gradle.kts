@@ -48,7 +48,7 @@ android {
         applicationId = "com.snishaper.android"
         minSdk = 24
         targetSdk = 36
-        versionName = "1.30.3.2"
+        versionName = "1.31.0"
         versionCode = (versionName ?: "0.0.0").substringBefore('-').split(".").let { parts ->
             (parts.getOrElse(0) { "0" }.toIntOrNull() ?: 0) * 1_000_000 +
                 (parts.getOrElse(1) { "0" }.toIntOrNull() ?: 0) * 1_000 +
