@@ -107,7 +107,7 @@ func (a *App) UpdateSettingsJSON(jsonConfig string) (err error) {
 		return err
 	}
 	if srv != nil && !srv.IsRunning() {
-		_ = srv.SetListenAddr("127.0.0.1:" + strings.TrimSpace(rm.GetListenPort()))
+		_ = srv.SetListenAddr(net.JoinHostPort(rm.GetListenAddress(), strings.TrimSpace(rm.GetListenPort())))
 	}
 
 	// A changed port requires a proxy restart.

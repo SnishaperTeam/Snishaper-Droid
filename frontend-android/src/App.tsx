@@ -7,7 +7,7 @@ import Sidebar from './components/Sidebar';
 import ToastProvider from './components/ToastProvider';
 import { defaultTheme, availableThemes } from './theme';
 import {
-  GetListenPort, GetAutoUpdateRules,
+  GetListenPort, GetListenAddress, GetAutoUpdateRules,
   GetTUNConfig, GetTUNStatus, GetCloudflareConfig,
   GetCAInstallStatus, GetInstalledCerts, GetCloudflareIPStats,
   GetLanguage, GetTheme, SetTheme, GetIPv6Available, GetTutorialDone, GetAppearanceMode, EventsOn
@@ -39,6 +39,7 @@ const Evolution = lazy(() => import('./pages/Evolution'));
 
 interface SettingsCache {
   port: number;
+  address: string;
   autoUpdateRules: boolean;
   tunConfig: any;
   tunStatus: any;
@@ -52,6 +53,7 @@ interface SettingsCache {
 
 const defaultCache: SettingsCache = {
   port: 8080,
+  address: '127.0.0.1',
   autoUpdateRules: true,
   tunConfig: { enabled: false, mtu: 9000, dns_hijack: true, auto_route: true, strict_route: true },
   tunStatus: { supported: true, running: false, enabled: false, message: '' },
@@ -95,8 +97,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const fastLoad = async () => {
       try {
-        const [language, port, autoUpdateRules, cfConfig, ipv6Available, savedThemeId] = await Promise.all([
-          GetLanguage(), GetListenPort(), GetAutoUpdateRules(), GetCloudflareConfig(), GetIPv6Available(), GetTheme()
+        const [language, port, address, autoUpdateRules, cfConfig, ipv6Available, savedThemeId] = await Promise.all([
+          GetLanguage(), GetListenPort(), GetListenAddress(), GetAutoUpdateRules(), GetCloudflareConfig(), GetIPv6Available(), GetTheme()
         ]);
         if (language) {
           localStorage.setItem('language', language as string);
@@ -113,6 +115,7 @@ const App: React.FC = () => {
           ...prev,
           language: (language as string) || '',
           port: port ?? prev.port,
+          address: typeof address === 'string' && address ? address : prev.address,
           autoUpdateRules: autoUpdateRules ?? prev.autoUpdateRules,
           cfConfig: cfConfig || prev.cfConfig,
           ipv6Available: typeof ipv6Available === 'boolean' ? ipv6Available : prev.ipv6Available,

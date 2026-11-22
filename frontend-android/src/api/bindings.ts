@@ -180,8 +180,10 @@ export const TriggerCFHealthCheck = () => appCall('TriggerCFHealthCheck');
 export const RemoveInvalidCFIPs = () => appCall('RemoveInvalidCFIPs');
 
 export const GetListenPort = () => appCall('GetListenPort');
+export const GetListenAddress = () => appCall('GetListenAddress');
 
 export const SetListenPort = (port: number) => appCall('SetListenPort', port);
+export const SetListenAddress = (addr: string) => appCall('SetListenAddress', addr);
 
 export const GetProxyMode = () => appCall('GetProxyMode');
 

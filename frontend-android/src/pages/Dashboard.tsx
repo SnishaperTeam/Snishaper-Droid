@@ -15,6 +15,7 @@ import {
   GetProxyMode,
   IsProxyRunning,
   GetListenPort,
+  GetListenAddress,
   GetStats,
   GetTUNStatus,
   StartProxy,
@@ -46,6 +47,7 @@ const Dashboard: React.FC = () => {
   const [proxyRunning, setProxyRunning] = useState(false);
   const [proxyMode, setProxyMode] = useState('MITM');
   const [port, setPort] = useState(8080);
+  const [address, setAddress] = useState('127.0.0.1');
   const [isOperating, setIsOperating] = useState(false);
   const operatingRef = useRef(false);
   const [isActive, setIsActive] = useState(true);
@@ -63,10 +65,11 @@ const Dashboard: React.FC = () => {
 
   const refresh = async () => {
     try {
-      const [running, m, p, ca, tunState, traffic] = await Promise.all([
+      const [running, m, p, addr, ca, tunState, traffic] = await Promise.all([
         IsProxyRunning(),
         GetProxyMode(),
         GetListenPort(),
+        GetListenAddress(),
         GetCAInstallStatus(),
         GetTUNStatus(),
         GetStats()
@@ -74,6 +77,7 @@ const Dashboard: React.FC = () => {
       setProxyRunning(running);
       setProxyMode(m.toUpperCase());
       setPort(p);
+      setAddress(addr || '127.0.0.1');
       setCaStatus(ca || { Installed: false });
       if (traffic) {
         setStats({
@@ -342,7 +346,7 @@ const Dashboard: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.25, bgcolor: 'primary.main', border: 1, borderColor: 'primary.main', borderRadius: 2, minWidth: 0 }}>
                   <Bolt size={18} color="primary.contrastText" aria-hidden />
                   <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'primary.contrastText', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', py: 0.25 }}>
-                    127.0.0.1:{port}
+                    {address}:{port}
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1, gap: 1 }}>

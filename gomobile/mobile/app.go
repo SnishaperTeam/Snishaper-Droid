@@ -146,7 +146,7 @@ func (a *App) Start() (err error) {
 		a.pushState()
 	})
 
-	srv := proxy.NewProxyServer("127.0.0.1:"+rm.GetListenPort(),
+	srv := proxy.NewProxyServer(net.JoinHostPort(rm.GetListenAddress(), rm.GetListenPort()),
 		proxy.WithRuleManager(rm),
 		proxy.WithLogger(corelog.Func(a.logf)),
 	)
@@ -363,7 +363,60 @@ func (a *App) SetListenPort(port int32) (err error) {
 	}
 	portStr := strconv.Itoa(int(port))
 	rm.SetListenPort(portStr)
-	if err := srv.SetListenAddr("127.0.0.1:" + portStr); err != nil {
+	if err := srv.SetListenAddr(net.JoinHostPort(rm.GetListenAddress(), portStr)); err != nil {
+		return err
+	}
+	if err := rm.SaveConfig(); err != nil {
+		return err
+	}
+	if wasRunning {
+		if err := a.startProxyLocked(); err != nil {
+			return err
+		}
+	}
+	a.pushState()
+	return nil
+}
+
+// GetListenAddress returns the configured proxy listen address (default
+// 127.0.0.1).
+func (a *App) GetListenAddress() (out string) {
+	defer recoverString(&out)
+	a.mu.Lock()
+	rm := a.rules
+	a.mu.Unlock()
+	if rm == nil {
+		return "127.0.0.1"
+	}
+	return rm.GetListenAddress()
+}
+
+// SetListenAddress validates and persists the proxy listen address. An empty
+// address resets to the default 127.0.0.1. If the proxy is running it is
+// restarted on the new address.
+func (a *App) SetListenAddress(addr string) (err error) {
+	defer recoverError(&err)
+	a.opMu.Lock()
+	defer a.opMu.Unlock()
+
+	value := strings.TrimSpace(addr)
+	if value != "" && net.ParseIP(value) == nil {
+		return fmt.Errorf("invalid listen address %q", addr)
+	}
+	a.mu.Lock()
+	rm := a.rules
+	srv := a.server
+	a.mu.Unlock()
+	if rm == nil || srv == nil {
+		return fmt.Errorf("engine is not started")
+	}
+	wasRunning := srv.IsRunning()
+	if wasRunning {
+		if err := a.stopProxyLocked(); err != nil {
+			return err
+		}
+	}
+	if err := rm.SetListenAddress(value); err != nil {
 		return err
 	}
 	if err := rm.SaveConfig(); err != nil {
@@ -537,7 +590,7 @@ func (a *App) StartTUN(fd int32, mtu int32) (err error) {
 	handle, err := newPlatformTUN(tunConfig{
 		Fd:        fd,
 		MTU:       mtu,
-		ProxyAddr: srv.GetListenAddr(),
+		ProxyAddr: localDialAddr(srv.GetListenAddr()),
 		Resolver:  srv.GetDoHResolver(),
 		Logf:      a.appendLog,
 	})
@@ -619,9 +672,23 @@ func (a *App) ensurePortLocked(rm *proxy.RuleManager) string {
 			}
 			a.dispatchLog(fmt.Sprintf("[proxy] port %d is busy, switched to %d", start, port))
 		}
-		return fmt.Sprintf("127.0.0.1:%d", port)
+		return net.JoinHostPort(rm.GetListenAddress(), strconv.Itoa(port))
 	}
-	return fmt.Sprintf("127.0.0.1:%d", start)
+	return net.JoinHostPort(rm.GetListenAddress(), strconv.Itoa(start))
+}
+
+// localDialAddr converts a proxy listen address into one a local client can
+// dial: wildcard binds ("0.0.0.0", "::") are not dial targets and map to
+// 127.0.0.1.
+func localDialAddr(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return net.JoinHostPort(host, port)
 }
 
 func (a *App) checkPortFree(port int) bool {
@@ -659,7 +726,7 @@ func (a *App) statusPayload() statusPayload {
 			payload.ListenPort = int32(value)
 		}
 		if payload.ListenAddr == "" {
-			payload.ListenAddr = "127.0.0.1:" + strings.TrimSpace(a.rules.GetListenPort())
+			payload.ListenAddr = net.JoinHostPort(a.rules.GetListenAddress(), strings.TrimSpace(a.rules.GetListenPort()))
 		}
 	}
 	if a.tun != nil {

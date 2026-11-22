@@ -418,6 +418,9 @@
     "port_title": "Proxy Port",
     "port_label": "Port",
     "port_desc": "HTTP and SOCKS5 share this port.",
+    "listen_address_title": "Listen Address",
+    "listen_address_label": "Address",
+    "listen_address_desc": "IP address the proxy listens on (IPv4/IPv6). Empty means 127.0.0.1; 0.0.0.0 listens on all interfaces.",
     "ca_management": {
       "title": "CA Management",
       "export": "Export Root CA",
@@ -432,7 +435,8 @@
     },
     "notifications": {
       "updated": "Settings updated",
-      "port_invalid": "Please enter a valid port between 1 and 65535"
+      "port_invalid": "Please enter a valid port between 1 and 65535",
+      "address_invalid": "Please enter a valid IP address (IPv4/IPv6), or leave empty"
     },
     "theme": {
       "label": "Color Scheme",
