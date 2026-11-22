@@ -20,7 +20,9 @@
 #     bot 只提交 versionName，versionCode 自动单调递增。
 #
 # 更新日志：不做 AI 总结，直接列提交：
-#   - <提交标题> by @<作者> in `<完整 sha>`（反引号包裹，GitHub 自动链接）
+#   - <提交标题> by @<GitHub 登录名> in `<7 位短 sha>`（反引号包裹，GitHub 自动链接）；
+#     基线为上一个正式（非 prerelease）Release 的 tag——预发布同样只对比上一个正式版，
+#     登录名按 commit 逐个经 GitHub API 解析（git 作者名不是登录名，直接 @ 会提到无关账号）。
 # =============================================================================
 name: Release
 
@@ -439,9 +441,35 @@ jobs:
           VERSION: ${{ needs.bump.outputs.version }}
           TAG: ${{ needs.bump.outputs.tag }}
           CHANNEL: ${{ inputs.channel }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          PREV_TAG="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          # Baseline = previous STABLE release, mirroring the desktop
+          # _release_pipeline: prerelease changelogs compare against the
+          # last official release. The old `git describe "$GITHUB_REF_NAME^"`
+          # was broken twice over: GITHUB_REF_NAME is the branch name which
+          # does not resolve on the detached HEAD this job checks out, so
+          # the describe failed and the changelog silently fell back to the
+          # whole history.
+          PREV_TAG="$(gh release list --limit 100 --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease == false) | .tagName] | first // empty')"
+          RANGE=""
+          if [ -n "$PREV_TAG" ]; then
+            git fetch --tags --force origin
+            RANGE="${PREV_TAG}..HEAD"
+            echo "::notice::changelog range: ${RANGE}"
+          else
+            echo "::notice::no previous stable release, listing the whole history"
+          fi
+          # Resolve the GitHub login per commit so the "by @login" mention
+          # points at the real account (git author names are not logins:
+          # "@dongle" mentioned the unrelated github.com/dongle user).
+          # Fallback: plain author name without @, never a wrong mention.
+          COMMITS="$(git log -n 200 --pretty=format:'%H%x09%s' ${RANGE} | while IFS=$'\t' read -r sha subject; do
+            login="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}" --jq '.author.login // empty' 2>/dev/null || true)"
+            if [ -n "$login" ]; then by="@${login}"; else by="$(git log -1 --pretty=format:%an "${sha}")"; fi
+            echo "- ${subject} by ${by} in \`${sha:0:7}\`"
+          done)"
           {
             echo "# Snishaper-Droid ${VERSION}（Android）"
             echo
@@ -455,13 +483,7 @@ jobs:
             fi
             echo "## 变更 / Changelog"
             echo
-            # Commit list, no AI summary:
-            #   - <subject> by @<author> in `<full sha>` (backticked -> GitHub autolink)
-            if [ -n "${PREV_TAG}" ]; then
-              git log -n 200 --pretty=format:"- %s by @%an in \`%H\`" "${PREV_TAG}..HEAD"
-            else
-              git log -n 200 --pretty=format:"- %s by @%an in \`%H\`"
-            fi
+            echo "$COMMITS"
             echo
             echo
             echo "## 产物 / Assets"
