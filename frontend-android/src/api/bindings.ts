@@ -221,6 +221,8 @@ export const GetCAInstallStatus = () => appCall('GetCAInstallStatus');
 export const GetInstalledCerts = () => appCall('GetInstalledCerts');
 
 export const GetCACertPEM = () => appCall('GetCACertPEM');
+// Result arrives via the `snishaper:cert-export` event (SAF picker is async).
+export const ExportCACert = () => appCall('ExportCACert');
 
 const TUTORIAL_DONE_KEY = 'tutorial-done';
 

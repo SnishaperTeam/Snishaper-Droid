@@ -44,6 +44,9 @@ open class MainWebViewActivity : ComponentActivity() {
 
     private companion object {
         const val TAG = SnishaperEngine.LOG_TAG
+
+        /** Result channel for the SAF CA export; the frontend listens for it. */
+        const val EVENT_CERT_EXPORT = "snishaper:cert-export"
     }
 
     /**
@@ -74,6 +77,45 @@ open class MainWebViewActivity : ComponentActivity() {
     fun requestVpnConsent(consent: Intent) {
         runCatching { vpnConsentLauncher.launch(consent) }
             .onFailure { Log.e(TAG, "vpn: consent launch failed: ${it.message}") }
+    }
+
+    /**
+     * CA export (issue #19): exported certificates must land in a directory the
+     * user picks (SAF ACTION_CREATE_DOCUMENT), not in the app sandbox where no
+     * file manager can reach them. The PEM bytes wait here while the system
+     * picker is up; the outcome reaches the frontend through the
+     * `snishaper:cert-export` event.
+     */
+    private var pendingCertExport: ByteArray? = null
+
+    private val certExportLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/x-x509-ca-cert"),
+    ) { uri ->
+        val pem = pendingCertExport
+        pendingCertExport = null
+        // pem == null: a second export was started meanwhile; uri == null: the
+        // user dismissed the picker — not an error.
+        if (pem == null || uri == null) return@registerForActivityResult
+        val result = runCatching {
+            contentResolver.openOutputStream(uri)?.use { it.write(pem) }
+                ?: throw IllegalStateException("output stream unavailable")
+            org.json.JSONObject().put("ok", true).put("uri", uri.toString())
+        }.getOrElse { error ->
+            Log.e(TAG, "cert export: write failed: ${error.message}")
+            org.json.JSONObject().put("ok", false).put("error", error.message ?: "write failed")
+        }
+        bridge.emit(EVENT_CERT_EXPORT, result.toString())
+    }
+
+    /** Called by [EngineBridge] for the CA export button; true once the picker is up. */
+    fun requestCertExport(pem: ByteArray): Boolean {
+        pendingCertExport = pem
+        return runCatching { certExportLauncher.launch("snishaper-ca.crt"); true }
+            .getOrElse {
+                pendingCertExport = null
+                Log.e(TAG, "cert export: picker launch failed: ${it.message}")
+                false
+            }
     }
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null

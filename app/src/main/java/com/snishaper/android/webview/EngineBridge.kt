@@ -255,6 +255,19 @@ internal class EngineBridge(private val webView: WebView) {
             "GetInstalledCerts" -> parse(app.getInstalledCertsJSON())
             // Desktop bindings return the PEM string verbatim.
             "GetCACertPEM" -> app.getCACertPEM()
+            // Issue #19: exports must land in a user-chosen directory (SAF),
+            // not the app sandbox. The system picker opens; the outcome toast
+            // comes from the snishaper:cert-export event.
+            "ExportCACert" -> {
+                val pem = app.getCACertPEM()
+                if (pem.isBlank()) throw BridgeException("no CA certificate to export")
+                val activity = (webView.context as? MainWebViewActivity)
+                    ?: throw BridgeException("certificate export requires the main activity")
+                if (!activity.requestCertExport(pem.toByteArray())) {
+                    throw BridgeException("could not open the system file picker")
+                }
+                "exporting"
+            }
 
             // ---- migration session service ---------------------------
             "GetMigrationServer" -> settings(app).optString("migration_server", "")

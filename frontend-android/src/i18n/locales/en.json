@@ -427,7 +427,8 @@
       "reset": "Reset Root CA",
       "reset_hint": "This will delete the current cert and generate a new one.",
       "reset_success": "Reset Successful",
-      "export_empty": "There is no root certificate to export"
+      "export_empty": "There is no root certificate to export",
+      "export_hint": "Export to a directory of your choice"
     },
     "certs_count": "{count} CERTS",
     "cf_pool": {

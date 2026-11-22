@@ -9,11 +9,11 @@ import {
   SetListenAddress,
   SetAutoUpdateRules,
   GetTUNConfig, UpdateTUNConfig, GetTUNStatus,
-  RegenerateCert, GetCAInstallStatus, GetInstalledCerts, UninstallCert, GetCACertPEM,
+  RegenerateCert, GetCAInstallStatus, GetInstalledCerts, UninstallCert, GetCACertPEM, ExportCACert,
   GetCloudflareConfig, GetCloudflareIPStats,
   ForceFetchCloudflareIPs, TriggerCFHealthCheck,
   SetLanguage, RefreshIPv6Check,
-  SetAppearanceMode,
+  SetAppearanceMode, EventsOn,
 } from '../api/bindings';
 import {
   Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Switch,
@@ -170,20 +170,22 @@ const Settings: React.FC<SettingsProps> = ({ cache, onCacheUpdate, currentThemeI
         toast.error(t('common.failed'), t('settings.ca_management.export_empty'));
         return;
       }
-      const blob = new Blob([pem], { type: 'application/x-x509-ca-cert' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'snishaper-ca.crt';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success(t('common.success'), 'snishaper-ca.crt');
+      // Opens the system directory picker (SAF); the outcome toast comes from
+      // the snishaper:cert-export event, see the EventsOn subscription below.
+      await ExportCACert();
     } catch (err: any) {
       toast.error(t('common.failed'), String(err));
     }
   };
+
+  useEffect(() => {
+    // SAF export result (issue #19): emitted by MainWebViewActivity once the
+    // user has picked (or dismissed) the target location.
+    return EventsOn('snishaper:cert-export', (data: any) => {
+      if (data?.ok) toast.success(t('common.success'), 'snishaper-ca.crt');
+      else toast.error(t('common.failed'), String(data?.error ?? ''));
+    });
+  }, [t]);
 
   const handleSavePort = async () => {
     const parsed = parseInt(port, 10);
@@ -473,7 +475,7 @@ const Settings: React.FC<SettingsProps> = ({ cache, onCacheUpdate, currentThemeI
                     {isCertBusy ? t('common.loading') : t('common.apply')}
                   </Button>
                 </SettingRowInline>
-                <SettingRowInline title={t('settings.ca_management.export')} desc={caStatus?.CertPath || undefined} icon={<FolderOpen size={18} />}>
+                <SettingRowInline title={t('settings.ca_management.export')} desc={t('settings.ca_management.export_hint')} icon={<FolderOpen size={18} />}>
                   <Button
                     size="small"
                     variant="text"
