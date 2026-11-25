@@ -1,6 +1,9 @@
 package mobile
 
-import "github.com/SnishaperTeam/snishaper-core/dohresolver"
+import (
+	"github.com/SnishaperTeam/snishaper-core/dohresolver"
+	"github.com/SnishaperTeam/snishaper-core/singtun"
+)
 
 // tunHandle is the platform TUN data plane used by App.StartTUN / StopTUN.
 type tunHandle interface {
@@ -18,4 +21,6 @@ type tunConfig struct {
 	ProxyAddr string
 	Resolver  *dohresolver.FailoverResolver
 	Logf      func(string)
+	// QUICRewrite optionally rewrites fake-ip QUIC Initials per site rules.
+	QUICRewrite singtun.QUICRewriteFunc
 }

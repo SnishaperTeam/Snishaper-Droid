@@ -82,6 +82,11 @@ func newPlatformTUN(cfg tunConfig) (tunHandle, error) {
 		return nil, fmt.Errorf("create tun device from fd %d: %w", cfg.Fd, err)
 	}
 	handler := singtun.NewHandler(cfg.ProxyAddr, cfg.Resolver, logf)
+	// TUN fake-ip UDP: rewrite QUIC Initials per site rules when a hook is set;
+	// domains without a rewrite strategy keep the old drop-to-TCP behavior.
+	if cfg.QUICRewrite != nil {
+		handler.SetQUICRewrite(cfg.QUICRewrite)
+	}
 	stack, err := tun.NewStack("gvisor", tun.StackOptions{
 		Context:    context.Background(),
 		Tun:        device,

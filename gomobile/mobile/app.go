@@ -16,6 +16,7 @@ import (
 	"github.com/SnishaperTeam/snishaper-core/evolution"
 	corelog "github.com/SnishaperTeam/snishaper-core/log"
 	"github.com/SnishaperTeam/snishaper-core/proxy"
+	"github.com/SnishaperTeam/snishaper-core/singtun"
 )
 
 const (
@@ -27,7 +28,7 @@ const (
 	// the version bump; "release" dispatches are written as "stable".
 	releaseChannel = "alpha"
 	// coreVersion is the pinned snishaper-core release (see go.mod).
-	coreVersion = "v0.8.5"
+	coreVersion = "v0.8.11"
 
 	proxyModeRule        = ""
 	proxyModeTransparent = "transparent"
@@ -568,6 +569,7 @@ func (a *App) StartTUN(fd int32, mtu int32) (err error) {
 	a.mu.Lock()
 	existing := a.tun
 	srv := a.server
+	rules := a.rules
 	a.mu.Unlock()
 	if existing != nil && existing.Running() {
 		return fmt.Errorf("TUN is already running")
@@ -587,12 +589,18 @@ func (a *App) StartTUN(fd int32, mtu int32) (err error) {
 	mtu = clampInt32(mtu, 576, 9000)
 
 	a.dispatchLog(fmt.Sprintf("[tun] starting TUN (fd=%d mtu=%d, proxy=%s)", fd, mtu, srv.GetListenAddr()))
+	var quicHook singtun.QUICRewriteFunc
+	if rules != nil {
+		// Rewrite fake-ip QUIC Initials per site rules (CircumVolve QUIC rewrite).
+		quicHook = rules.MatchQUICStrategies
+	}
 	handle, err := newPlatformTUN(tunConfig{
-		Fd:        fd,
-		MTU:       mtu,
-		ProxyAddr: localDialAddr(srv.GetListenAddr()),
-		Resolver:  srv.GetDoHResolver(),
-		Logf:      a.appendLog,
+		Fd:          fd,
+		MTU:         mtu,
+		ProxyAddr:   localDialAddr(srv.GetListenAddr()),
+		Resolver:    srv.GetDoHResolver(),
+		Logf:        a.appendLog,
+		QUICRewrite: quicHook,
 	})
 	if err != nil {
 		a.setLastError(err.Error())
