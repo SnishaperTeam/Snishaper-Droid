@@ -137,11 +137,57 @@ jobs:
             changed=true
           fi
 
+          # Sync the docs/SECURITY.md Supported Versions table with this
+          # release, mirroring the desktop inject-manifest-release.ps1:
+          # a pre-release lists its line as best effort, a stable release
+          # marks the line as the latest stable.
+          python3 - "$version" "$CHANNEL" <<'PY'
+          import re
+          import sys
+
+          version, channel = sys.argv[1], sys.argv[2]
+          mm = '.'.join(version.split('.')[:2])
+          prerelease = channel != 'release'
+          version_cell = (
+              f'{mm}.x pre-releases (alpha / beta / rc)'
+              if prerelease else
+              f'{mm}.x (latest stable line)'
+          )
+          supported_cell = '✅ (best effort)' if prerelease else '✅'
+
+          path = 'docs/SECURITY.md'
+          with open(path, encoding='utf-8', newline='') as fh:
+              text = fh.read()
+          start = text.index('## Supported Versions')
+          match = re.compile(r'(?:^[^\S\n]*\|.*\n)+', re.M).search(text, start)
+          if not match:
+              sys.exit(f'::error::no supported-versions table found in {path}')
+          nl = '\r\n' if '\r\n' in text else '\n'
+          widths = (
+              max(len('Version'), len(version_cell)),
+              max(len('Supported'), len(supported_cell)),
+          )
+          rows = (
+              ('Version', 'Supported'),
+              ('-' * widths[0], '-' * widths[1]),
+              (version_cell, supported_cell),
+          )
+          table = nl.join(
+              '| ' + ' | '.join(cell.ljust(widths[i]) for i, cell in enumerate(row)) + ' |'
+              for row in rows
+          )
+          with open(path, 'w', encoding='utf-8', newline='') as fh:
+              fh.write(text[:match.start()] + table + nl + text[match.end():])
+          print(f"::notice::docs/SECURITY.md supported versions -> '{version_cell}'")
+          PY
+          git diff --quiet docs/SECURITY.md || changed=true
+
           if [ "$changed" = true ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add app/build.gradle.kts gomobile/mobile/app.go \
-              frontend-android/package.json frontend-android/package-lock.json
+              frontend-android/package.json frontend-android/package-lock.json \
+              docs/SECURITY.md
             git commit -m "chore(release): v${version} (${CHANNEL})"
             git push
             echo "::notice::bot committed version=${version} channel=${CHANNEL}"
